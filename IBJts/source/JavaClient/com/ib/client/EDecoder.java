@@ -1,3 +1,6 @@
+/* Copyright (C) 2013 Interactive Brokers LLC. All rights reserved.  This code is subject to the terms
+ * and conditions of the IB API Non-Commercial License or the IB API Commercial License, as applicable. */
+
 package com.ib.client;
 
 import java.io.Closeable;
@@ -66,6 +69,10 @@ class EDecoder implements ObjectInput {
     static final int SECURITY_DEFINITION_OPTION_PARAMETER = 75;
     static final int SECURITY_DEFINITION_OPTION_PARAMETER_END = 76;
     static final int SOFT_DOLLAR_TIERS = 77;
+    static final int FAMILY_CODES = 78;
+    static final int SYMBOL_SAMPLES = 79;
+    static final int MKT_DEPTH_EXCHANGES = 80;
+    static final int TICK_NEWS = 84;
 
     static final int MAX_MSG_LENGTH = 0xffffff;
     static final int REDIRECT_MSG_ID = -1;
@@ -365,6 +372,22 @@ class EDecoder implements ObjectInput {
             	processSoftDollarTiersMsg();
             	break;
 
+            case FAMILY_CODES:
+                processFamilyCodesMsg();
+                break;
+
+            case SYMBOL_SAMPLES:
+                processSymbolSamplesMsg();
+                break;
+
+            case MKT_DEPTH_EXCHANGES:
+                processMktDepthExchangesMsg();
+                break;
+
+            case TICK_NEWS:
+                processTickNewsMsg();
+                break;
+
             default: {
                 m_EWrapper.error( EClientErrors.NO_VALID_ID, EClientErrors.UNKNOWN_ID.code(), EClientErrors.UNKNOWN_ID.msg());
                 return 0;
@@ -373,6 +396,87 @@ class EDecoder implements ObjectInput {
         
         m_messageReader.close();
         return m_messageReader.msgLength();
+    }
+
+    private void processTickNewsMsg() throws IOException {
+        int tickerId = readInt();
+        long timeStamp = readLong();
+        String providerCode = readStr();
+        String articleId = readStr();
+        String headline = readStr();
+        String extraData = readStr();
+
+        m_EWrapper.tickNews(tickerId, timeStamp, providerCode, articleId, headline, extraData);
+    }
+
+    private void processMktDepthExchangesMsg() throws IOException {
+        DepthMktDataDescription[] depthMktDataDescriptions = new DepthMktDataDescription[0];
+        int nDepthMktDataDescriptions = readInt();
+
+        if (nDepthMktDataDescriptions > 0) {
+            depthMktDataDescriptions = new DepthMktDataDescription[nDepthMktDataDescriptions];
+
+            for (int i = 0; i < nDepthMktDataDescriptions; i++)
+            {
+                depthMktDataDescriptions[i] = new DepthMktDataDescription(readStr(), readStr(), readBoolFromInt());
+            }
+        }
+
+        m_EWrapper.mktDepthExchanges(depthMktDataDescriptions);
+    }
+
+    private void processSymbolSamplesMsg() throws IOException {
+        int reqId = readInt();
+        ContractDescription[] contractDescriptions = new ContractDescription[0];
+        int nContractDescriptions = readInt();
+
+        if (nContractDescriptions > 0){
+            contractDescriptions = new ContractDescription[nContractDescriptions];
+
+            for (int i = 0; i < nContractDescriptions; i++)
+            {
+                // read contract fields
+                Contract contract = new Contract();
+                contract.conid(readInt());
+                contract.symbol(readStr());
+                contract.secType(readStr());
+                contract.primaryExch(readStr());
+                contract.currency(readStr());
+
+                // read derivative sec types list
+                String[] derivativeSecTypes = new String[0];
+                int nDerivativeSecTypes = readInt();
+
+                if (nDerivativeSecTypes > 0){
+                    derivativeSecTypes = new String[nDerivativeSecTypes];
+                    for (int j = 0; j < nDerivativeSecTypes; j++)
+                    {
+                        derivativeSecTypes[j] = readStr();
+                    }
+                }
+
+                ContractDescription contractDescription = new ContractDescription(contract, derivativeSecTypes);
+                contractDescriptions[i] = contractDescription;
+            }
+        }
+
+        m_EWrapper.symbolSamples(reqId, contractDescriptions);
+    }
+
+    private void processFamilyCodesMsg() throws IOException {
+        FamilyCode[] familyCodes = new FamilyCode[0];
+        int nFamilyCodes = readInt();
+
+        if (nFamilyCodes > 0) {
+            familyCodes = new FamilyCode[nFamilyCodes];
+
+            for (int i = 0; i < nFamilyCodes; i++)
+            {
+                familyCodes[i] = new FamilyCode(readStr(), readStr());
+            }
+        }
+
+        m_EWrapper.familyCodes(familyCodes);
     }
 
 	private void processSoftDollarTiersMsg() throws IOException {
@@ -561,13 +665,12 @@ class EDecoder implements ObjectInput {
 	private void processHistoricalDataMsg() throws IOException {
 		int version = readInt();
 		  int reqId = readInt();
-		  String startDateStr;
-		  String endDateStr;
-		  String completedIndicator = "finished";
+		  String startDateStr = "";
+		  String endDateStr = "";
+		  
 		  if (version >= 2) {
 			  startDateStr = readStr();
 			  endDateStr = readStr();
-			  completedIndicator += "-" + startDateStr + "-" + endDateStr;
 		  }
 		  int itemCount = readInt();
 		  for (int ctr = 0; ctr < itemCount; ctr++) {
@@ -588,7 +691,7 @@ class EDecoder implements ObjectInput {
 		                            Boolean.valueOf(hasGaps).booleanValue());
 		  }
 		  // send end of dataset marker
-		  m_EWrapper.historicalData(reqId, completedIndicator, -1, -1, -1, -1, -1, -1, -1, false);
+		  m_EWrapper.historicalDataEnd(reqId, startDateStr, endDateStr);
 	}
 
 	private void processReceiveFaMsg() throws IOException {
@@ -699,7 +802,7 @@ class EDecoder implements ObjectInput {
 		    exec.liquidation(readInt());
 		}
 		if (version >= 6) {
-			exec.cumQty(readInt());
+			exec.cumQty(readDouble());
 			exec.avgPrice(readDouble());
 		}
 		if (version >= 8) {
@@ -745,6 +848,9 @@ class EDecoder implements ObjectInput {
 		contract.contract().tradingClass(readStr());
 		contract.contract().conid(readInt());
 		contract.minTick(readDouble());
+		if (m_serverVersion >= EClient.MIN_SERVER_VER_MD_SIZE_MULTIPLIER) {
+			contract.mdSizeMultiplier(readInt());
+		}
 		contract.orderTypes(readStr());
 		contract.validExchanges(readStr());
 		if (version >= 2) {
@@ -797,6 +903,9 @@ class EDecoder implements ObjectInput {
 		contract.contract().tradingClass(readStr());
 		contract.contract().conid(readInt());
 		contract.minTick(readDouble());
+		if (m_serverVersion >= EClient.MIN_SERVER_VER_MD_SIZE_MULTIPLIER) {
+			contract.mdSizeMultiplier(readInt());
+		}
 		contract.contract().multiplier(readStr());
 		contract.orderTypes(readStr());
 		contract.validExchanges(readStr());
@@ -840,12 +949,12 @@ class EDecoder implements ObjectInput {
 	}
 
 	private void processScannerDataMsg() throws IOException {
-		ContractDetails contract = new ContractDetails();
 		int version = readInt();
 		int tickerId = readInt();
 		int numberOfElements = readInt();
 		for (int ctr=0; ctr < numberOfElements; ctr++) {
 		    int rank = readInt();
+		    ContractDetails contract = new ContractDetails();
 		    if (version >= 3) {
 		    	contract.contract().conid(readInt());
 		    }
@@ -1240,6 +1349,10 @@ class EDecoder implements ObjectInput {
 			order.softDollarTier(new SoftDollarTier(readStr(), readStr(), readStr()));
 		}
 
+		if (m_serverVersion >= EClient.MIN_SERVER_VER_CASH_QTY) {
+			order.cashQty(readDoubleMax());
+		}
+		
 		m_EWrapper.openOrder( order.orderId(), contract, order, orderState);
 	}
 
@@ -1410,7 +1523,8 @@ class EDecoder implements ObjectInput {
 		double vega = Double.MAX_VALUE;
 		double theta = Double.MAX_VALUE;
 		double undPrice = Double.MAX_VALUE;
-		if (version >= 6 || tickType == TickType.MODEL_OPTION.index()) { // introduced in version == 5
+		if (version >= 6 || tickType == TickType.MODEL_OPTION.index()
+				|| tickType == TickType.DELAYED_MODEL_OPTION.index()) { // introduced in version == 5
 			optPrice = readDouble();
 			if (optPrice < 0) { // -1 is the "not yet computed" indicator
 				optPrice = Double.MAX_VALUE;
@@ -1506,14 +1620,27 @@ class EDecoder implements ObjectInput {
 		int tickType = readInt();
 		double price = readDouble();
 		int size = 0;
+		TickAttr attribs = new TickAttr();
+		
 		if( version >= 2) {
 		    size = readInt();
 		}
-		int canAutoExecute = 0;
-		if (version >= 3) {
-		    canAutoExecute = readInt();
+		
+		if (version >= 3) {		
+			int attrMask = readInt();			
+
+			attribs.canAutoExecute(attrMask == 1);
+			
+			if (m_serverVersion >= EClient.MIN_SERVER_VER_PAST_LIMIT) {
+				BitMask mask = new BitMask(attrMask);
+				
+				attribs.canAutoExecute(mask.get(0));
+				attribs.pastLimit(mask.get(1));
+			}
 		}
-		m_EWrapper.tickPrice( tickerId, tickType, price, canAutoExecute);
+
+		
+		m_EWrapper.tickPrice( tickerId, tickType, price, attribs);
 
 		if( version >= 2) {
 		    int sizeTickType = -1 ; // not a tick
@@ -1526,6 +1653,15 @@ class EDecoder implements ObjectInput {
 		            break ;
 		        case 4: // LAST
 		            sizeTickType = 5 ; // LAST_SIZE
+		            break ;
+		        case 66: // DELAYED_BID
+		            sizeTickType = 69 ; // DELAYED_BID_SIZE
+		            break ;
+		        case 67: // DELAYED_ASK
+		            sizeTickType = 70 ; // DELAYED_ASK_SIZE
+		            break ;
+		        case 68: // DELAYED_LAST
+		            sizeTickType = 71 ; // DELAYED_LAST_SIZE
 		            break ;
 		    }
 		    if (sizeTickType != -1) {

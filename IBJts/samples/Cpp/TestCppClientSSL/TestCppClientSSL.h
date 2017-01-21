@@ -1,4 +1,4 @@
-﻿/* Copyright (C) 2013 Interactive Brokers LLC. All rights reserved. This code is subject to the terms
+/* Copyright (C) 2013 Interactive Brokers LLC. All rights reserved. This code is subject to the terms
 * and conditions of the IB API Non-Commercial License or the IB API Commercial License, as applicable. */
 
 #pragma once
@@ -49,7 +49,7 @@ private:
 
 public:
 	// events
-	void tickPrice(TickerId tickerId, TickType field, double price, int canAutoExecute);
+	void tickPrice( TickerId tickerId, TickType field, double price, const TickAttrib& attrib);
 	void tickSize(TickerId tickerId, TickType field, int size);
 	void tickOptionComputation( TickerId tickerId, TickType tickType, double impliedVol, double delta,
 		double optPrice, double pvDividend, double gamma, double vega, double theta, double undPrice);
@@ -87,6 +87,7 @@ public:
 	void receiveFA(faDataType pFaDataType, const std::string& cxml);
 	void historicalData(TickerId reqId, const std::string& date, double open, double high,
 		double low, double close, int volume, int barCount, double WAP, int hasGaps);
+	void historicalDataEnd(int reqId, std::string startDateStr, std::string endDateStr);
 	void scannerParameters(const std::string& xml);
 	void scannerData(int reqId, int rank, const ContractDetails& contractDetails,
 		const std::string& distance, const std::string& benchmark, const std::string& projection,
@@ -115,18 +116,23 @@ public:
 	void positionMultiEnd( int reqId);
 	void accountUpdateMulti( int reqId, const std::string& account, const std::string& modelCode, const std::string& key, const std::string& value, const std::string& currency);
 	void accountUpdateMultiEnd( int reqId);
-    void securityDefinitionOptionalParameter(int reqId, int underlyingConId, const std::string& tradingClass, const std::string& multiplier, std::set<std::string> expirations, std::set<double> strikes);
-    void securityDefinitionOptionalParameterEnd(int reqId);
+	void securityDefinitionOptionalParameter(int reqId, const std::string& exchange, int underlyingConId, const std::string& tradingClass, const std::string& multiplier, std::set<std::string> expirations, std::set<double> strikes);
+	void securityDefinitionOptionalParameterEnd(int reqId);
+	void softDollarTiers(int reqId, const std::vector<SoftDollarTier> &tiers);
+	void familyCodes(const std::vector<FamilyCode> &familyCodes);
+	void symbolSamples(int reqId, const std::vector<ContractDescription> &contractDescriptions);
+	void mktDepthExchanges(const std::vector<DepthMktDataDescription> &depthMktDataDescriptions);
+	void tickNews(int tickerId, time_t timeStamp, const std::string& providerCode, const std::string& articleId, const std::string& headline, const std::string& extraData);
 
 private:
-
-	EClientSocketSSL * const m_pClient;
+    EReaderOSSignal m_osSignal;
+    EClientSocketSSL * const m_pClient;
 	State m_state;
 	time_t m_sleepDeadline;
 
 	OrderId m_orderId;
 	EReaderSSL *m_pReader;
-	EReaderOSSignal m_osSignal;
+	
     bool m_extraAuth;
 };
 

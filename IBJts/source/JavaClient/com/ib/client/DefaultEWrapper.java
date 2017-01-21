@@ -9,7 +9,7 @@ class DefaultEWrapper implements EWrapper {
 
 	@Override
 	public void tickPrice(int tickerId, int field, double price,
-			int canAutoExecute) {
+			TickAttr attribs) {
 		// TODO Auto-generated method stub
 		
 	}
@@ -371,5 +371,34 @@ class DefaultEWrapper implements EWrapper {
 		// TODO Auto-generated method stub
 		
 	}
+
+	@Override
+	public void familyCodes(FamilyCode[] familyCodes) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void historicalDataEnd(int reqId, String startDateStr, String endDateStr) {
+		// TODO Auto-generated method stub
+		
+	}
 	
+	@Override
+	public void symbolSamples(int reqId, ContractDescription[] contractDescriptions) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void mktDepthExchanges(DepthMktDataDescription[] depthMktDataDescriptions) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void tickNews(int tickerId, long timeStamp, String providerCode, String articleId, String headline, String extraData) {
+		// TODO Auto-generated method stub
+		
+	}
 }

@@ -67,6 +67,9 @@ public class EClientErrors {
     static final CodeMsgPair FAIL_SEND_CANACCOUNTUPDATESMULTI = new CodeMsgPair(556, "Cancel Account Updates Multi Sending Error - ");
     static final CodeMsgPair FAIL_SEND_REQSECDEFOPTPARAMS = new CodeMsgPair(557, "Request Security Definition Option Params Sending Error - ");
     static final CodeMsgPair FAIL_SEND_REQSOFTDOLLARTIERS = new CodeMsgPair(558, "Request Soft Dollar Tiers Sending Error - ");
+    static final CodeMsgPair FAIL_SEND_REQFAMILYCODES = new CodeMsgPair(559, "Request Family Codes Sending Error - ");
+    static final CodeMsgPair FAIL_SEND_REQMATCHINGSYMBOLS = new CodeMsgPair(560, "Request Matching Symbols Sending Error - ");
+    static final CodeMsgPair FAIL_SEND_REQMKTDEPTHEXCHANGES = new CodeMsgPair(561, "Request Market Depth Exchanges Sending Error - ");
 
     public EClientErrors() {
     }

@@ -1,4 +1,4 @@
-﻿/* Copyright (C) 2013 Interactive Brokers LLC. All rights reserved. This code is subject to the terms
+/* Copyright (C) 2013 Interactive Brokers LLC. All rights reserved. This code is subject to the terms
  * and conditions of the IB API Non-Commercial License or the IB API Commercial License, as applicable. */
 
 #pragma once
@@ -56,12 +56,19 @@ const int MIN_SERVER_VER_MODELS_SUPPORT         = 103;
 const int MIN_SERVER_VER_SEC_DEF_OPT_PARAMS_REQ = 104;
 const int MIN_SERVER_VER_EXT_OPERATOR	        = 105;
 const int MIN_SERVER_VER_SOFT_DOLLAR_TIER		= 106;
+const int MIN_SERVER_VER_REQ_FAMILY_CODES		= 107;
+const int MIN_SERVER_VER_REQ_MATCHING_SYMBOLS	= 108;
+const int MIN_SERVER_VER_PAST_LIMIT				= 109;
+const int MIN_SERVER_VER_MD_SIZE_MULTIPLIER		= 110;
+const int MIN_SERVER_VER_CASH_QTY				= 111;
+const int MIN_SERVER_VER_REQ_MKT_DEPTH_EXCHANGES = 112;
+const int MIN_SERVER_VER_TICK_NEWS				= 113;
 
 /* 100+ messaging */
 // 100 = enhanced handshake, msg length prefixes
 
 const int MIN_CLIENT_VER = 100;
-const int MAX_CLIENT_VER = MIN_SERVER_VER_SOFT_DOLLAR_TIER;
+const int MAX_CLIENT_VER = MIN_SERVER_VER_TICK_NEWS;
 
 
 // incoming msg id's
@@ -117,6 +124,10 @@ const int ACCOUNT_UPDATE_MULTI_END  = 74;
 const int SECURITY_DEFINITION_OPTION_PARAMETER = 75;
 const int SECURITY_DEFINITION_OPTION_PARAMETER_END = 76;
 const int SOFT_DOLLAR_TIERS = 77;
+const int FAMILY_CODES = 78;
+const int SYMBOL_SAMPLES = 79;
+const int MKT_DEPTH_EXCHANGES = 80;
+const int TICK_NEWS = 84;
 
 const int HEADER_LEN = 4; // 4 bytes for msg length
 const int MAX_MSG_LEN = 0xFFFFFF; // 16Mb - 1byte
@@ -148,13 +159,6 @@ struct ScanData {
 };
 
 } // end of anonymous namespace
-
-///////////////////////////////////////////////////////////
-// utility funcs
-static std::string errMsg(std::exception e) {
-	// return the error associated with this exception
-	return std::string(e.what());
-}
 
 class EWrapper;
 class EClient;
@@ -218,6 +222,10 @@ class TWSAPIDLLEXP EDecoder
 	const char* processSecurityDefinitionOptionalParameterMsg(const char* ptr, const char* endPtr);
 	const char* processSecurityDefinitionOptionalParameterEndMsg(const char* ptr, const char* endPtr);
 	const char* processSoftDollarTiersMsg(const char* ptr, const char* endPtr);
+	const char* processFamilyCodesMsg(const char* ptr, const char* endPtr);
+	const char* processSymbolSamplesMsg(const char* ptr, const char* endPtr);
+	const char* processMktDepthExchangesMsg(const char* ptr, const char* endPtr);
+	const char* processTickNewsMsg(const char* ptr, const char* endPtr);
 
     int processConnectAck(const char*& beginPtr, const char* endPtr);
 
@@ -228,6 +236,7 @@ public:
 	static bool DecodeField(bool&, const char*& ptr, const char* endPtr);
 	static bool DecodeField(int&, const char*& ptr, const char* endPtr);
 	static bool DecodeField(long&, const char*& ptr, const char* endPtr);
+	static bool DecodeField(time_t&, const char*& ptr, const char* endPtr);
 	static bool DecodeField(double&, const char*& ptr, const char* endPtr);
 	static bool DecodeField(std::string&, const char*& ptr, const char* endPtr);
 

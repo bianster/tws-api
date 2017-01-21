@@ -14,8 +14,10 @@ import java.util.StringTokenizer;
 
 import com.ib.client.CommissionReport;
 import com.ib.client.Contract;
+import com.ib.client.ContractDescription;
 import com.ib.client.ContractDetails;
 import com.ib.client.DeltaNeutralContract;
+import com.ib.client.DepthMktDataDescription;
 import com.ib.client.EClientErrors;
 import com.ib.client.EJavaSignal;
 import com.ib.client.EReader;
@@ -23,12 +25,15 @@ import com.ib.client.EReaderSignal;
 import com.ib.client.EWrapper;
 import com.ib.client.Execution;
 import com.ib.client.ExecutionFilter;
+import com.ib.client.FamilyCode;
+import com.ib.client.MarketDataType;
 import com.ib.client.Order;
 import com.ib.client.OrderState;
 import com.ib.client.OrderStatus;
 import com.ib.client.ScannerSubscription;
 import com.ib.client.SoftDollarTier;
 import com.ib.client.TagValue;
+import com.ib.client.TickAttr;
 import com.ib.client.TickType;
 import com.ib.client.Types.BarSize;
 import com.ib.client.Types.DeepSide;
@@ -74,6 +79,10 @@ public class ApiController implements EWrapper {
 	private final HashMap<Integer, IAccountUpdateMultiHandler> m_accountUpdateMultiMap = new HashMap<Integer, IAccountUpdateMultiHandler>();
 	private final HashMap<Integer, ISecDefOptParamsReqHandler> m_secDefOptParamsReqMap = new HashMap<Integer, ISecDefOptParamsReqHandler>();
 	private final HashMap<Integer, ISoftDollarTiersReqHandler> m_softDollarTiersReqMap = new HashMap<>();
+	private final ConcurrentHashSet<IFamilyCodesHandler> m_familyCodesHandlers = new ConcurrentHashSet<IFamilyCodesHandler>();
+	private final HashMap<Integer, ISymbolSamplesHandler> m_symbolSamplesHandlerMap = new HashMap<Integer, ISymbolSamplesHandler>();
+	private final ConcurrentHashSet<IMktDepthExchangesHandler> m_mktDepthExchangesHandlers = new ConcurrentHashSet<IMktDepthExchangesHandler>();
+	private final HashMap<Integer, ITickNewsHandler> m_tickNewsHandlerMap = new HashMap<Integer, ITickNewsHandler>();
 	private boolean m_connected = false;
 
 	public ApiConnection client() { return m_client; }
@@ -117,9 +126,11 @@ public class ApiController implements EWrapper {
 	}
 
 	public void connect( String host, int port, int clientId, String connectionOpts ) {
-		m_client.eConnect(host, port, clientId);
-		startMsgProcessingThread();
-        sendEOM();
+		if(!m_client.isConnected()){
+			m_client.eConnect(host, port, clientId);
+			startMsgProcessingThread();
+	        sendEOM();
+		}
     }
 
 	public void disconnect() {
@@ -455,11 +466,11 @@ public class ApiController implements EWrapper {
 
 	// ---------------------------------------- Top Market Data handling ----------------------------------------
 	public interface ITopMktDataHandler {
-		void tickPrice(TickType tickType, double price, int canAutoExecute);
+		void tickPrice(TickType tickType, double price, TickAttr attribs);
 		void tickSize(TickType tickType, int size);
 		void tickString(TickType tickType, String value);
 		void tickSnapshotEnd();
-		void marketDataType(MktDataType marketDataType);
+		void marketDataType(int marketDataType);
 	}
 
 	public interface IEfpHandler extends ITopMktDataHandler {
@@ -471,7 +482,7 @@ public class ApiController implements EWrapper {
 	}
 
 	public static class TopMktDataAdapter implements ITopMktDataHandler {
-		@Override public void tickPrice(TickType tickType, double price, int canAutoExecute) {
+		@Override public void tickPrice(TickType tickType, double price, TickAttr attribs) {
 		}
 		@Override public void tickSize(TickType tickType, int size) {
 		}
@@ -479,7 +490,7 @@ public class ApiController implements EWrapper {
 		}
 		@Override public void tickSnapshotEnd() {
 		}
-		@Override public void marketDataType(MktDataType marketDataType) {
+		@Override public void marketDataType(int marketDataType) {
 		}
 	}
 
@@ -539,18 +550,35 @@ public class ApiController implements EWrapper {
     	getAndRemoveKey( m_efpMap, handler);
     }
 
-	public void reqMktDataType( MktDataType type) {
+	public void reqMktDataType( int mktDataType) {
 		if (!checkConnection())
 			return;
 
-		m_client.reqMarketDataType( type.ordinal() );
+		m_client.reqMarketDataType( mktDataType);
 		sendEOM();
+		switch(mktDataType){
+			case MarketDataType.REALTIME:
+				show( "Frozen, Delayed and Delayed-Frozen market data types are disabled");
+				break;
+			case MarketDataType.FROZEN:
+				show( "Frozen market data type is enabled");
+				break;
+			case MarketDataType.DELAYED:
+				show( "Delayed market data type is enabled, Delayed-Frozen market data type is disabled");
+				break;
+			case MarketDataType.DELAYED_FROZEN:
+				show( "Delayed and Delayed-Frozen market data types are enabled");
+				break;
+			default:
+				show( "Unknown market data type");
+				break;
+		}
 	}
 
-	@Override public void tickPrice(int reqId, int tickType, double price, int canAutoExecute) {
+	@Override public void tickPrice(int reqId, int tickType, double price, TickAttr attribs) {
 		ITopMktDataHandler handler = m_topMktDataMap.get( reqId);
 		if (handler != null) {
-			handler.tickPrice( TickType.get( tickType), price, canAutoExecute);
+			handler.tickPrice( TickType.get( tickType), price, attribs);
 		}
 		recEOM();
 	}
@@ -558,7 +586,7 @@ public class ApiController implements EWrapper {
 	@Override public void tickGeneric(int reqId, int tickType, double value) {
 		ITopMktDataHandler handler = m_topMktDataMap.get( reqId);
 		if (handler != null) {
-			handler.tickPrice( TickType.get( tickType), value, 0);
+			handler.tickPrice( TickType.get( tickType), value, new TickAttr());
 		}
 		recEOM();
 	}
@@ -598,7 +626,7 @@ public class ApiController implements EWrapper {
 	@Override public void marketDataType(int reqId, int marketDataType) {
 		ITopMktDataHandler handler = m_topMktDataMap.get( reqId);
 		if (handler != null) {
-			handler.marketDataType( MktDataType.get( marketDataType) );
+			handler.marketDataType( marketDataType );
 		}
 		recEOM();
 	}
@@ -1021,7 +1049,7 @@ public class ApiController implements EWrapper {
 					int year = Integer.parseInt( date.substring( 0, 4) );
 					int month = Integer.parseInt( date.substring( 4, 6) );
 					int day = Integer.parseInt( date.substring( 6) );
-					longDate = new GregorianCalendar( year - 1900, month - 1, day).getTimeInMillis() / 1000;
+					longDate = new GregorianCalendar( year, month - 1, day).getTimeInMillis() / 1000;
 				}
 				else {
 					longDate = Long.parseLong( date);
@@ -1338,4 +1366,107 @@ public class ApiController implements EWrapper {
 			handler.softDollarTiers(tiers);
 		}
 	}
+
+    public interface IFamilyCodesHandler {
+        void familyCodes(FamilyCode[] familyCodes);
+    }
+
+    public void reqFamilyCodes(IFamilyCodesHandler handler) {
+        if (!checkConnection())
+            return;
+
+        m_familyCodesHandlers.add(handler);
+        m_client.reqFamilyCodes();
+        sendEOM();
+    }
+
+    @Override
+    public void familyCodes(FamilyCode[] familyCodes) {
+        for( IFamilyCodesHandler handler : m_familyCodesHandlers) {
+            handler.familyCodes(familyCodes);
+        }
+        recEOM();
+    }
+    
+    public interface ISymbolSamplesHandler {
+        void symbolSamples(ContractDescription[] contractDescriptions);
+    }
+
+    public void reqMatchingSymbols(String pattern, ISymbolSamplesHandler handler) {
+        if (!checkConnection())
+            return;
+        
+        int reqId = m_reqId++;
+
+        m_symbolSamplesHandlerMap.put(reqId, handler);
+        m_client.reqMatchingSymbols(reqId, pattern);
+        sendEOM();
+    }
+
+    @Override
+    public void symbolSamples(int reqId, ContractDescription[] contractDescriptions) {
+        ISymbolSamplesHandler handler = m_symbolSamplesHandlerMap.get(reqId);
+
+        if (handler != null) {
+            handler.symbolSamples(contractDescriptions);
+        }
+        recEOM();
+    }
+
+	@Override
+	public void historicalDataEnd(int reqId, String startDateStr, String endDateStr) {
+		IHistoricalDataHandler handler = m_historicalDataMap.get(reqId);
+		
+		if (handler != null) {
+			handler.historicalDataEnd();
+		}
+	}
+	
+	public interface IMktDepthExchangesHandler {
+		void mktDepthExchanges(DepthMktDataDescription[] depthMktDataDescriptions);
+	}
+
+	public void reqMktDepthExchanges(IMktDepthExchangesHandler handler) {
+		if (!checkConnection())
+			return;
+
+		m_mktDepthExchangesHandlers.add(handler);
+		m_client.reqMktDepthExchanges();
+		sendEOM();
+	}
+
+	
+	@Override
+	public void mktDepthExchanges(DepthMktDataDescription[] depthMktDataDescriptions) {
+		for( IMktDepthExchangesHandler handler : m_mktDepthExchangesHandlers) {
+			handler.mktDepthExchanges(depthMktDataDescriptions);
+		}
+		recEOM();
+	}
+
+	public interface ITickNewsHandler {
+		void tickNews(long timeStamp, String providerCode, String articleId, String headline, String extraData);
+	}
+
+	public void reqNewsTicks(Contract contract, ITickNewsHandler handler) {
+		if (!checkConnection())
+			return;
+
+		int tickerId = m_reqId++;
+
+		m_tickNewsHandlerMap.put(tickerId, handler);
+		m_client.reqMktData(tickerId, contract, "mdoff,292", false, Collections.<TagValue>emptyList());
+		sendEOM();
+	}
+
+	@Override
+	public void tickNews(int tickerId, long timeStamp, String providerCode, String articleId, String headline, String extraData) {
+		ITickNewsHandler handler = m_tickNewsHandlerMap.get(tickerId);
+
+		if (handler != null) {
+			handler.tickNews(timeStamp, providerCode, articleId, headline, extraData);
+		}
+		recEOM();
+	}
+
 }

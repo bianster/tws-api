@@ -1,4 +1,4 @@
-﻿/* Copyright (C) 2013 Interactive Brokers LLC. All rights reserved. This code is subject to the terms
+/* Copyright (C) 2013 Interactive Brokers LLC. All rights reserved. This code is subject to the terms
  * and conditions of the IB API Non-Commercial License or the IB API Commercial License, as applicable. */
 
 #include "StdAfx.h"
@@ -12,6 +12,7 @@
 #include "Order.h"
 
 #include <stdio.h>
+#include <iostream>
 
 const int PING_DEADLINE = 2; // seconds
 const int SLEEP_BETWEEN_PINGS = 30; // seconds
@@ -73,9 +74,8 @@ void TestCppClient::setConnectOptions(const std::string& connectOptions)
 }
 
 void TestCppClient::processMessages() {
-	fd_set readSet, writeSet, errorSet;
 
-	struct timeval tval;
+    struct timeval tval;
 	tval.tv_usec = 0;
 	tval.tv_sec = 0;
 
@@ -216,7 +216,7 @@ void TestCppClient::error(const int id, const int errorCode, const std::string e
 		disconnect();
 }
 
-void TestCppClient::tickPrice( TickerId tickerId, TickType field, double price, int canAutoExecute) {}
+void TestCppClient::tickPrice( TickerId tickerId, TickType field, double price, const TickAttrib& attrib) {};
 void TestCppClient::tickSize( TickerId tickerId, TickType field, int size) {}
 void TestCppClient::tickOptionComputation( TickerId tickerId, TickType tickType, double impliedVol, double delta,
                                           double optPrice, double pvDividend,
@@ -252,6 +252,9 @@ void TestCppClient::receiveFA(faDataType pFaDataType, const std::string& cxml) {
 void TestCppClient::historicalData(TickerId reqId, const std::string& date, double open, double high,
                                    double low, double close, int volume, int barCount, double WAP, int hasGaps) {}
 void TestCppClient::scannerParameters(const std::string& xml) {}
+void TestCppClient::historicalDataEnd(int reqId, std::string startDateStr, std::string endDateStr) { 
+	std::cout << "HistoricalDataEnd. ReqId: " << reqId << " - Start Date: " << startDateStr << ", End Date: " << endDateStr << std::endl;	
+}
 void TestCppClient::scannerData(int reqId, int rank, const ContractDetails& contractDetails,
                                 const std::string& distance, const std::string& benchmark, const std::string& projection,
                                 const std::string& legsStr) {}
@@ -282,5 +285,10 @@ void TestCppClient::positionMulti( int reqId, const std::string& account,const s
 void TestCppClient::positionMultiEnd( int reqId) {}
 void TestCppClient::accountUpdateMulti( int reqId, const std::string& account, const std::string& modelCode, const std::string& key, const std::string& value, const std::string& currency) {}
 void TestCppClient::accountUpdateMultiEnd( int reqId) {}
-void TestCppClient::securityDefinitionOptionalParameter(int reqId, int underlyingConId, const std::string& tradingClass, const std::string& multiplier, std::set<std::string> expirations, std::set<double> strikes) {}
+void TestCppClient::securityDefinitionOptionalParameter(int reqId, const std::string& exchange, int underlyingConId, const std::string& tradingClass, const std::string& multiplier, std::set<std::string> expirations, std::set<double> strikes) {}
 void TestCppClient::securityDefinitionOptionalParameterEnd(int reqId) {}
+void TestCppClient::softDollarTiers(int reqId, const std::vector<SoftDollarTier> &tiers) {}
+void TestCppClient::familyCodes(const std::vector<FamilyCode> &familyCodes) {}
+void TestCppClient::symbolSamples(int reqId, const std::vector<ContractDescription> &contractDescriptions) {}
+void TestCppClient::mktDepthExchanges(const std::vector<DepthMktDataDescription> &depthMktDataDescriptions) {}
+void TestCppClient::tickNews(int tickerId, time_t timeStamp, const std::string& providerCode, const std::string& articleId, const std::string& headline, const std::string& extraData) {}

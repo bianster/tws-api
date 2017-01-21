@@ -173,7 +173,9 @@ public abstract class EClient {
     private static final int CANCEL_ACCOUNT_UPDATES_MULTI = 77;
     private static final int REQ_SEC_DEF_OPT_PARAMS     = 78;
     private static final int REQ_SOFT_DOLLAR_TIERS     = 79;
-    
+    private static final int REQ_FAMILY_CODES = 80;
+    private static final int REQ_MATCHING_SYMBOLS = 81;
+    private static final int REQ_MKT_DEPTH_EXCHANGES = 82;
 
 	private static final int MIN_SERVER_VER_REAL_TIME_BARS = 34;
 	private static final int MIN_SERVER_VER_SCALE_ORDERS = 35;
@@ -224,9 +226,16 @@ public abstract class EClient {
     protected static final int MIN_SERVER_VER_SEC_DEF_OPT_PARAMS_REQ = 104;
     protected static final int MIN_SERVER_VER_EXT_OPERATOR = 105;
     protected static final int MIN_SERVER_VER_SOFT_DOLLAR_TIER = 106;
+    protected static final int MIN_SERVER_VER_REQ_FAMILY_CODES = 107;
+    protected static final int MIN_SERVER_VER_REQ_MATCHING_SYMBOLS = 108;
+    protected static final int MIN_SERVER_VER_PAST_LIMIT = 109;
+    protected static final int MIN_SERVER_VER_MD_SIZE_MULTIPLIER = 110;
+    protected static final int MIN_SERVER_VER_CASH_QTY = 111;
+    protected static final int MIN_SERVER_VER_REQ_MKT_DEPTH_EXCHANGES = 112;
+    protected static final int MIN_SERVER_VER_TICK_NEWS = 113;
     
     public static final int MIN_VERSION = 100; // envelope encoding, applicable to useV100Plus mode only
-    public static final int MAX_VERSION = MIN_SERVER_VER_SOFT_DOLLAR_TIER; // ditto
+    public static final int MAX_VERSION = MIN_SERVER_VER_TICK_NEWS; // ditto
 
 
     protected EReaderSignal m_signal;
@@ -646,7 +655,7 @@ public abstract class EClient {
         }
     }
 
-    public void cancelRealTimeBars(int tickerId) {
+    public synchronized void cancelRealTimeBars(int tickerId) {
         // not connected?
         if( !isConnected()) {
             notConnected();
@@ -1379,6 +1388,14 @@ public abstract class EClient {
         }
         
 
+        if (m_serverVersion < MIN_SERVER_VER_CASH_QTY) {
+            if (order.cashQty() != Double.MAX_VALUE) {
+                error(id, EClientErrors.UPDATE_TWS,
+                    " It does not support cash quantity parameter");
+                return;
+            }
+        }
+
         int VERSION = (m_serverVersion < MIN_SERVER_VER_NOT_HELD) ? 27 : 45;
 
         // send place order msg
@@ -1779,6 +1796,10 @@ public abstract class EClient {
         	   b.send(tier.name());
         	   b.send(tier.value());
            }           
+
+           if (m_serverVersion >= MIN_SERVER_VER_CASH_QTY) {
+               b.sendMax(order.cashQty());
+           }
            
            closeAndSend(b);
         }
@@ -2556,7 +2577,7 @@ public abstract class EClient {
         }
 	}
 	
-	public void reqSoftDollarTiers(int reqId) {
+	public synchronized void reqSoftDollarTiers(int reqId) {
 		if (!isConnected()) {
 			notConnected();
 			return;
@@ -3034,7 +3055,84 @@ public abstract class EClient {
             error( EClientErrors.NO_VALID_ID, EClientErrors.FAIL_SEND_UNSUBSCRIBEFROMGROUPEVENTS, e.toString());
         }
     }	
-	
+
+    public synchronized void reqMatchingSymbols( int reqId, String pattern) {
+        // not connected?
+        if( !isConnected()) {
+            notConnected();
+            return;
+        }
+
+        if (m_serverVersion < MIN_SERVER_VER_REQ_MATCHING_SYMBOLS) {
+            error(EClientErrors.NO_VALID_ID, EClientErrors.UPDATE_TWS,
+            "  It does not support matching symbols request.");
+            return;
+        }
+
+        Builder b = prepareBuffer();
+
+        b.send( REQ_MATCHING_SYMBOLS);
+        b.send( reqId);
+        b.send( pattern);
+
+        try {
+            closeAndSend(b);
+        }
+        catch (IOException e) {
+            error( EClientErrors.NO_VALID_ID, EClientErrors.FAIL_SEND_REQMATCHINGSYMBOLS, e.toString());
+        }
+    }	
+
+    public synchronized void reqFamilyCodes() {
+        // not connected?
+        if( !isConnected()) {
+            notConnected();
+            return;
+        }
+
+        if (m_serverVersion < MIN_SERVER_VER_REQ_FAMILY_CODES) {
+            error(EClientErrors.NO_VALID_ID, EClientErrors.UPDATE_TWS,
+            "  It does not support family codes request.");
+            return;
+        }
+
+        Builder b = prepareBuffer();
+
+        b.send( REQ_FAMILY_CODES);
+
+        try {
+            closeAndSend(b);
+        }
+        catch (IOException e) {
+            error( EClientErrors.NO_VALID_ID, EClientErrors.FAIL_SEND_REQFAMILYCODES, e.toString());
+        }
+    }
+
+    public synchronized void reqMktDepthExchanges() {
+        // not connected?
+        if( !isConnected()) {
+            notConnected();
+            return;
+        }
+
+        if (m_serverVersion < MIN_SERVER_VER_REQ_MKT_DEPTH_EXCHANGES) {
+            error(EClientErrors.NO_VALID_ID, EClientErrors.UPDATE_TWS,
+            "  It does not support market depth exchanges request.");
+            return;
+        }
+
+        Builder b = prepareBuffer();
+
+        b.send( REQ_MKT_DEPTH_EXCHANGES);
+
+        try {
+            closeAndSend(b);
+        }
+        catch (IOException e) {
+            error( EClientErrors.NO_VALID_ID, EClientErrors.FAIL_SEND_REQMKTDEPTHEXCHANGES, e.toString());
+        }
+    }
+
     /** @deprecated, never called. */
     protected synchronized void error( String err) {
         m_eWrapper.error( err);

@@ -20,18 +20,23 @@ import javax.swing.JPanel;
 
 import com.ib.client.CommissionReport;
 import com.ib.client.Contract;
+import com.ib.client.ContractDescription;
 import com.ib.client.ContractDetails;
 import com.ib.client.DeltaNeutralContract;
+import com.ib.client.DepthMktDataDescription;
 import com.ib.client.EClientSocket;
 import com.ib.client.EJavaSignal;
 import com.ib.client.EReader;
 import com.ib.client.EWrapper;
 import com.ib.client.EWrapperMsgGenerator;
 import com.ib.client.Execution;
+import com.ib.client.FamilyCode;
+import com.ib.client.MarketDataType;
 import com.ib.client.Order;
 import com.ib.client.OrderState;
 import com.ib.client.SoftDollarTier;
 import com.ib.client.TagValue;
+import com.ib.client.TickAttr;
 
 class SampleFrame extends JFrame implements EWrapper {
     private static final int NOT_AN_FA_ACCOUNT_ERROR = 321 ;
@@ -407,6 +412,24 @@ class SampleFrame extends JFrame implements EWrapper {
                 onGroups();
             }
         });
+        JButton butRequestFamilyCodes = new JButton( "Request Family Codes");
+        butRequestFamilyCodes.addActionListener( new ActionListener() {
+            public void actionPerformed( ActionEvent e) {
+                onRequestFamilyCodes();
+            }
+        });
+        JButton butRequestMatchingSymbols = new JButton( "Request Mathing Symbols");
+        butRequestMatchingSymbols.addActionListener( new ActionListener() {
+            public void actionPerformed( ActionEvent e) {
+                onRequestMatchingSymbols();
+            }
+        });
+        JButton butReqMktDepthExchanges = new JButton( "Req Mkt Depth Exchanges");
+        butReqMktDepthExchanges.addActionListener( new ActionListener() {
+            public void actionPerformed( ActionEvent e) {
+                onReqMktDepthExchanges();
+            }
+        });
 
         JButton butClear = new JButton( "Clear");
         butClear.addActionListener( new ActionListener() {
@@ -474,6 +497,9 @@ class SampleFrame extends JFrame implements EWrapper {
         buttonPanel.add( butCancelAccountUpdatesMulti ) ;
         buttonPanel.add(butRequestSecurityDefinitionOptionParameters);
         buttonPanel.add( butGroups ) ;
+        buttonPanel.add( butRequestFamilyCodes ) ;
+        buttonPanel.add( butRequestMatchingSymbols ) ;
+        buttonPanel.add( butReqMktDepthExchanges ) ;
 
         buttonPanel.add( new JPanel() );
         buttonPanel.add( butClear );
@@ -481,6 +507,10 @@ class SampleFrame extends JFrame implements EWrapper {
 
         return buttonPanel;
     }
+
+	protected void onReqMktDepthExchanges() {
+		m_client.reqMktDepthExchanges();
+	}
 
 	protected void onRequestSecurityDefinitionOptionParameters() {
 		m_secDefOptParamsReq.setModal(true);
@@ -498,6 +528,8 @@ class SampleFrame extends JFrame implements EWrapper {
 	}
 
 	void onConnect() {
+		if(m_client.isConnected())
+			return;
         m_bIsFAAccount = false;
         // get connection parameters
         ConnectDlg dlg = new ConnectDlg( this);
@@ -950,6 +982,26 @@ class SampleFrame extends JFrame implements EWrapper {
 
         // req mkt data type
         m_client.reqMarketDataType( m_orderDlg.m_marketDataType);
+
+        if(m_client.isConnected()) {
+            switch( m_orderDlg.m_marketDataType){
+                case MarketDataType.REALTIME:
+                    m_TWS.add( "Frozen, Delayed and Delayed-Frozen market data types are disabled");
+                    break;
+                case MarketDataType.FROZEN:
+                    m_TWS.add( "Frozen market data type is enabled");
+                    break;
+                case MarketDataType.DELAYED:
+                    m_TWS.add( "Delayed market data type is enabled, Delayed-Frozen market data type is disabled");
+                    break;
+                case MarketDataType.DELAYED_FROZEN:
+                    m_TWS.add( "Delayed and Delayed-Frozen market data types are enabled");
+                    break;
+                default:
+                    m_errors.add( "Unknown market data type");
+                    break;
+            }
+        }
     }
 
     void onRequestPositions() {
@@ -1028,9 +1080,26 @@ class SampleFrame extends JFrame implements EWrapper {
 //        }
     }
     
-    public void tickPrice( int tickerId, int field, double price, int canAutoExecute) {
+    void onRequestFamilyCodes() {
+        // request family codes
+        m_client.reqFamilyCodes();
+    }
+
+    void onRequestMatchingSymbols() {
+        // run m_orderDlg
+        m_orderDlg.init("Options", false);
+        m_orderDlg.show();
+        if( !m_orderDlg.m_rc ) {
+            return;
+        }
+
+        // request matching symbols
+        m_client.reqMatchingSymbols( m_orderDlg.m_id, m_orderDlg.m_contract.symbol());
+    }
+    
+    public void tickPrice( int tickerId, int field, double price, TickAttr attribs) {
         // received price tick
-    	String msg = EWrapperMsgGenerator.tickPrice( tickerId, field, price, canAutoExecute);
+    	String msg = EWrapperMsgGenerator.tickPrice( tickerId, field, price, attribs);
         m_tickers.add( msg );
     }
 
@@ -1261,6 +1330,12 @@ class SampleFrame extends JFrame implements EWrapper {
         String msg = EWrapperMsgGenerator.historicalData(reqId, date, open, high, low, close, volume, count, WAP, hasGaps);
     	m_tickers.add( msg );
     }
+    
+    public void historicalDataEnd(int reqId, String startDate, String endDate) {
+    	String msg = EWrapperMsgGenerator.historicalDataEnd(reqId, startDate, endDate);
+    	m_tickers.add( msg );
+    }
+    
 	public void realtimeBar(int reqId, long time, double open, double high, double low, double close, long volume, double wap, int count) {
 		String msg = EWrapperMsgGenerator.realtimeBar(reqId, time, open, high, low, close, volume, wap, count);
         m_tickers.add( msg );
@@ -1477,5 +1552,28 @@ class SampleFrame extends JFrame implements EWrapper {
 	@Override
 	public void softDollarTiers(int reqId, SoftDollarTier[] tiers) {
 	}
-    
+
+    @Override
+    public void familyCodes(FamilyCode[] familyCodes) {
+        String msg = EWrapperMsgGenerator.familyCodes(familyCodes);
+        m_TWS.add(msg);
+    }
+
+    @Override
+    public void symbolSamples(int reqId, ContractDescription[] contractDescriptions) {
+        String msg = EWrapperMsgGenerator.symbolSamples(reqId, contractDescriptions);
+        m_TWS.add(msg);
+    }
+
+	@Override
+	public void mktDepthExchanges(DepthMktDataDescription[] depthMktDataDescriptions) {
+		String msg = EWrapperMsgGenerator.mktDepthExchanges(depthMktDataDescriptions);
+		m_TWS.add(msg);
+	}
+	
+	@Override
+	public void tickNews(int tickerId, long timeStamp, String providerCode, String articleId, String headline, String extraData) {
+		String msg = EWrapperMsgGenerator.tickNews(tickerId, timeStamp, providerCode, articleId, headline, extraData);
+		m_TWS.add(msg);
+	}
 }

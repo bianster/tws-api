@@ -1,14 +1,16 @@
-﻿/* Copyright (C) 2013 Interactive Brokers LLC. All rights reserved. This code is subject to the terms
+/* Copyright (C) 2013 Interactive Brokers LLC. All rights reserved. This code is subject to the terms
  * and conditions of the IB API Non-Commercial License or the IB API Commercial License, as applicable. */
 
 #include "StdAfx.h"
 #include <assert.h>
 #include <string>
+#include <bitset>
 #include "EWrapper.h"
 #include "Order.h"
 #include "Contract.h"
 #include "OrderState.h"
 #include "Execution.h"
+#include "FamilyCode.h"
 #include "CommissionReport.h"
 #include "TwsSocketClientErrors.h"
 #include "EDecoder.h"
@@ -28,17 +30,28 @@ const char* EDecoder::processTickPriceMsg(const char* ptr, const char* endPtr) {
     double price;
 
     int size;
-    int canAutoExecute;
+    int attrMask;
 
     DECODE_FIELD( version);
     DECODE_FIELD( tickerId);
     DECODE_FIELD( tickTypeInt);
     DECODE_FIELD( price);
-
     DECODE_FIELD( size); // ver 2 field
-    DECODE_FIELD( canAutoExecute); // ver 3 field
+    DECODE_FIELD( attrMask); // ver 3 field
 
-    m_pEWrapper->tickPrice( tickerId, (TickType)tickTypeInt, price, canAutoExecute);
+	TickAttrib attrib;
+
+	attrib.canAutoExecute = attrMask == 1;
+
+	if (m_serverVersion >= MIN_SERVER_VER_PAST_LIMIT)
+	{
+		std::bitset<32> mask(attrMask);
+
+		attrib.canAutoExecute = mask[0];
+		attrib.pastLimit = mask[1];
+	}
+
+    m_pEWrapper->tickPrice( tickerId, (TickType)tickTypeInt, price, attrib);
 
     // process ver 2 fields
     {
@@ -52,6 +65,15 @@ const char* EDecoder::processTickPriceMsg(const char* ptr, const char* endPtr) {
             break;
         case LAST:
             sizeTickType = LAST_SIZE;
+            break;
+        case DELAYED_BID:
+            sizeTickType = DELAYED_BID_SIZE;
+            break;
+        case DELAYED_ASK:
+            sizeTickType = DELAYED_ASK_SIZE;
+            break;
+        case DELAYED_LAST:
+            sizeTickType = DELAYED_LAST_SIZE;
             break;
         default:
             break;
@@ -108,7 +130,7 @@ const char* EDecoder::processTickOptionComputationMsg(const char* ptr, const cha
         delta = DBL_MAX;
     }
 
-    if( version >= 6 || tickTypeInt == MODEL_OPTION) { // introduced in version == 5
+    if( version >= 6 || tickTypeInt == MODEL_OPTION || tickTypeInt == DELAYED_MODEL_OPTION_COMPUTATION) { // introduced in version == 5
 
         DECODE_FIELD( optPrice);
         DECODE_FIELD( pvDividend);
@@ -652,6 +674,10 @@ const char* EDecoder::processOpenOrderMsg(const char* ptr, const char* endPtr) {
 		order.softDollarTier = SoftDollarTier(name, value, displayName);
 	}
 
+	if (m_serverVersion >= MIN_SERVER_VER_CASH_QTY) {
+		DECODE_FIELD_MAX(order.cashQty);
+	}
+
     m_pEWrapper->openOrder( (OrderId)order.orderId, contract, order, orderState);
 
     return ptr;
@@ -785,6 +811,9 @@ const char* EDecoder::processContractDataMsg(const char* ptr, const char* endPtr
     DECODE_FIELD( contract.summary.tradingClass);
     DECODE_FIELD( contract.summary.conId);
     DECODE_FIELD( contract.minTick);
+    if (m_serverVersion >= MIN_SERVER_VER_MD_SIZE_MULTIPLIER) {
+        DECODE_FIELD( contract.mdSizeMultiplier);
+    }
     DECODE_FIELD( contract.summary.multiplier);
     DECODE_FIELD( contract.orderTypes);
     DECODE_FIELD( contract.validExchanges);
@@ -859,6 +888,9 @@ const char* EDecoder::processBondContractDataMsg(const char* ptr, const char* en
     DECODE_FIELD( contract.summary.tradingClass);
     DECODE_FIELD( contract.summary.conId);
     DECODE_FIELD( contract.minTick);
+    if (m_serverVersion >= MIN_SERVER_VER_MD_SIZE_MULTIPLIER) {
+        DECODE_FIELD( contract.mdSizeMultiplier);
+    }
     DECODE_FIELD( contract.orderTypes);
     DECODE_FIELD( contract.validExchanges);
     DECODE_FIELD( contract.nextOptionDate); // ver 2 field
@@ -1107,8 +1139,7 @@ const char* EDecoder::processHistoricalDataMsg(const char* ptr, const char* endP
     }
 
     // send end of dataset marker
-    std::string finishedStr = std::string("finished-") + startDateStr + "-" + endDateStr;
-    m_pEWrapper->historicalData( reqId, finishedStr, -1, -1, -1, -1, -1, -1, -1, 0);
+    m_pEWrapper->historicalDataEnd( reqId, startDateStr, endDateStr);
 
     return ptr;
 }
@@ -1670,6 +1701,105 @@ const char* EDecoder::processSoftDollarTiersMsg(const char* ptr, const char* end
 	return ptr;
 }
 
+const char* EDecoder::processFamilyCodesMsg(const char* ptr, const char* endPtr) 
+{
+	typedef std::vector<FamilyCode> FamilyCodeList;
+	FamilyCodeList familyCodes;
+	int nFamilyCodes = 0;
+	DECODE_FIELD( nFamilyCodes);
+
+	if (nFamilyCodes > 0) {
+		familyCodes.resize(nFamilyCodes);
+		for( int i = 0; i < nFamilyCodes; ++i) {
+			DECODE_FIELD( familyCodes[i].accountID);
+			DECODE_FIELD( familyCodes[i].familyCodeStr);
+		}
+	}
+
+	m_pEWrapper->familyCodes(familyCodes);
+
+	return ptr;
+}
+
+const char* EDecoder::processSymbolSamplesMsg(const char* ptr, const char* endPtr) 
+{
+	int reqId;
+	typedef std::vector<ContractDescription> ContractDescriptionList;
+	ContractDescriptionList contractDescriptions;
+	int nContractDescriptions = 0;
+	DECODE_FIELD( reqId);
+	DECODE_FIELD( nContractDescriptions);
+
+	if (nContractDescriptions > 0) {
+		contractDescriptions.resize(nContractDescriptions);
+		for( int i = 0; i < nContractDescriptions; ++i) {
+			ContractDescription& contractDescription = contractDescriptions[i];
+			Contract& contract = contractDescription.contract;
+			DECODE_FIELD( contract.conId);
+			DECODE_FIELD( contract.symbol);
+			DECODE_FIELD( contract.secType);
+			DECODE_FIELD( contract.primaryExchange);
+			DECODE_FIELD( contract.currency);
+
+			int nDerivativeSecTypes = 0;
+			DECODE_FIELD(nDerivativeSecTypes);
+			if (nDerivativeSecTypes <= 0)
+				continue;
+
+			ContractDescription::DerivativeSecTypesList& derivativeSecTypes = contractDescription.derivativeSecTypes;
+			derivativeSecTypes.resize(nDerivativeSecTypes);
+			for (int j = 0; j < nDerivativeSecTypes; ++j){
+				DECODE_FIELD( derivativeSecTypes[j]);
+			}
+		}
+	}
+
+	m_pEWrapper->symbolSamples(reqId, contractDescriptions);
+
+	return ptr;
+}
+
+const char* EDecoder::processMktDepthExchangesMsg(const char* ptr, const char* endPtr) 
+{
+	typedef std::vector<DepthMktDataDescription> DepthMktDataDescriptionList;
+	DepthMktDataDescriptionList depthMktDataDescriptions;
+	int nDepthMktDataDescriptions = 0;
+	DECODE_FIELD( nDepthMktDataDescriptions);
+
+	if (nDepthMktDataDescriptions > 0) {
+		depthMktDataDescriptions.resize(nDepthMktDataDescriptions);
+		for( int i = 0; i < nDepthMktDataDescriptions; ++i) {
+			DECODE_FIELD( depthMktDataDescriptions[i].exchange);
+			DECODE_FIELD( depthMktDataDescriptions[i].secType);
+			DECODE_FIELD( depthMktDataDescriptions[i].isL2);
+		}
+	}
+
+	m_pEWrapper->mktDepthExchanges(depthMktDataDescriptions);
+
+	return ptr;
+}
+
+const char* EDecoder::processTickNewsMsg(const char* ptr, const char* endPtr) 
+{
+	int tickerId;
+	time_t timeStamp;
+	std::string providerCode;
+	std::string articleId;
+	std::string headline;
+	std::string extraData;
+
+	DECODE_FIELD( tickerId);
+	DECODE_FIELD( timeStamp);
+	DECODE_FIELD( providerCode);
+	DECODE_FIELD( articleId);
+	DECODE_FIELD( headline);
+	DECODE_FIELD( extraData);
+
+	m_pEWrapper->tickNews(tickerId, timeStamp, providerCode, articleId, headline, extraData);
+
+	return ptr;
+}
 
 int EDecoder::processConnectAck(const char*& beginPtr, const char* endPtr)
 {
@@ -1722,9 +1852,8 @@ int EDecoder::processConnectAck(const char*& beginPtr, const char* endPtr)
 		beginPtr = ptr;
 		return processed;
 	}
-	catch(  std::exception e) {
-		m_pEWrapper->error( NO_VALID_ID, SOCKET_EXCEPTION.code(),
-			SOCKET_EXCEPTION.msg() + errMsg( e) );
+	catch(const std::exception& e) {
+		m_pEWrapper->error( NO_VALID_ID, SOCKET_EXCEPTION.code(), SOCKET_EXCEPTION.msg() + e.what());
 	}
 
 	return 0;
@@ -1956,6 +2085,22 @@ int EDecoder::parseAndProcessMsg(const char*& beginPtr, const char* endPtr) {
 			ptr = processSoftDollarTiersMsg(ptr, endPtr);
 			break;
 
+		case FAMILY_CODES:
+			ptr = processFamilyCodesMsg(ptr, endPtr);
+			break;
+
+		case SYMBOL_SAMPLES:
+			ptr = processSymbolSamplesMsg(ptr, endPtr);
+			break;
+
+		case MKT_DEPTH_EXCHANGES:
+			ptr = processMktDepthExchangesMsg(ptr, endPtr);
+			break;
+
+		case TICK_NEWS:
+			ptr = processTickNewsMsg(ptr, endPtr);
+			break;
+
         default:
             {
                 m_pEWrapper->error( msgId, UNKNOWN_ID.code(), UNKNOWN_ID.msg());
@@ -1971,9 +2116,8 @@ int EDecoder::parseAndProcessMsg(const char*& beginPtr, const char* endPtr) {
         beginPtr = ptr;
         return processed;
     }
-    catch( std::exception e) {
-        m_pEWrapper->error( NO_VALID_ID, SOCKET_EXCEPTION.code(),
-            SOCKET_EXCEPTION.msg() + errMsg(e));
+    catch(const std::exception& e) {
+        m_pEWrapper->error( NO_VALID_ID, SOCKET_EXCEPTION.code(), SOCKET_EXCEPTION.msg() + e.what());
     }
     return 0;
 }
@@ -2008,6 +2152,19 @@ bool EDecoder::DecodeField(int& intValue, const char*& ptr, const char* endPtr)
     if( !fieldEnd)
         return false;
     intValue = atoi(fieldBeg);
+    ptr = ++fieldEnd;
+    return true;
+}
+
+bool EDecoder::DecodeField(time_t& time_tValue, const char*& ptr, const char* endPtr)
+{
+    if( !CheckOffset(ptr, endPtr))
+        return false;
+    const char* fieldBeg = ptr;
+    const char* fieldEnd = FindFieldEnd(fieldBeg, endPtr);
+    if( !fieldEnd)
+        return false;
+    time_tValue = _atoi64(fieldBeg);
     ptr = ++fieldEnd;
     return true;
 }

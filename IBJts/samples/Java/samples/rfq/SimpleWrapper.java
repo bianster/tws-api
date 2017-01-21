@@ -12,16 +12,20 @@ import java.util.Set;
 
 import com.ib.client.CommissionReport;
 import com.ib.client.Contract;
+import com.ib.client.ContractDescription;
 import com.ib.client.ContractDetails;
 import com.ib.client.DeltaNeutralContract;
+import com.ib.client.DepthMktDataDescription;
 import com.ib.client.EClientSocket;
 import com.ib.client.EJavaSignal;
 import com.ib.client.EReader;
 import com.ib.client.EWrapper;
 import com.ib.client.Execution;
+import com.ib.client.FamilyCode;
 import com.ib.client.Order;
 import com.ib.client.OrderState;
 import com.ib.client.SoftDollarTier;
+import com.ib.client.TickAttr;
 
 
 public class SimpleWrapper implements EWrapper {
@@ -110,7 +114,7 @@ public class SimpleWrapper implements EWrapper {
 	 * EWrapper
 	 *****************************************************************/
 
-	public void tickPrice(int tickerId, int field, double price, int canAutoExecute) {
+	public void tickPrice(int tickerId, int field, double price, TickAttr attribs) {
 		logIn("tickPrice");
 	}
 
@@ -395,6 +399,36 @@ public class SimpleWrapper implements EWrapper {
 
 	@Override
 	public void softDollarTiers(int reqId, SoftDollarTier[] tiers) {
+		// TODO Auto-generated method stub
+		
+	}
+
+    @Override
+    public void familyCodes(FamilyCode[] familyCodes) {
+        // TODO Auto-generated method stub
+
+    }
+
+    @Override
+    public void symbolSamples(int reqId, ContractDescription[] contractDescriptions) {
+        // TODO Auto-generated method stub
+
+    }
+	@Override
+	public void historicalDataEnd(int reqId, String startDateStr, String endDateStr) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void mktDepthExchanges(DepthMktDataDescription[] depthMktDataDescriptions) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void tickNews(int tickerId, long timeStamp, String providerCode, String articleId, String headline,
+			String extraData) {
 		// TODO Auto-generated method stub
 		
 	}

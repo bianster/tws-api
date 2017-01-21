@@ -31,37 +31,38 @@ public class Testbed {
 		//! [connect]
 		//! [ereader]
 		final EReader reader = new EReader(m_client, m_signal);        
-        reader.start();        
-        new Thread() {
-        	public void run() {
-        		while (m_client.isConnected()) {
-	    			m_signal.waitForSignal();
-    				try {
-    					reader.processMsgs();
-    				} catch (Exception e) {
-    					System.out.println("Exception: "+e.getMessage());
-    				}
-        		}
-        	}
-        }.start();
-        //! [ereader]
-        Thread.sleep(1000);
-		
-		//orderOperations(wrapper.getClient(), wrapper.getCurrentOrderId());
-		//contractOperations(wrapper.getClient());
-        //hedgeSample(wrapper.getClient(), wrapper.getCurrentOrderId());
-        //testAlgoSamples(wrapper.getClient(), wrapper.getCurrentOrderId());
-        //bracketSample(wrapper.getClient(), wrapper.getCurrentOrderId());
-		//bulletins(wrapper.getClient());
-        //reutersFundamentals(wrapper.getClient());
-        //marketDataType(wrapper.getClient());
-        //historicalDataRequests(wrapper.getClient());
-        //accountOperations(wrapper.getClient());
-		
-		Thread.sleep(100000);
-		m_client.eDisconnect();
-	}
-	
+                reader.start();
+                new Thread() {
+                    public void run() {
+                        while (m_client.isConnected()) {
+                            m_signal.waitForSignal();
+                            try {
+                                reader.processMsgs();
+                            } catch (Exception e) {
+                                System.out.println("Exception: "+e.getMessage());
+                            }
+                        }
+                    }
+                }.start();
+                //! [ereader]
+                Thread.sleep(1000);
+                
+                //orderOperations(wrapper.getClient(), wrapper.getCurrentOrderId());
+                //contractOperations(wrapper.getClient());
+                //hedgeSample(wrapper.getClient(), wrapper.getCurrentOrderId());
+                //testAlgoSamples(wrapper.getClient(), wrapper.getCurrentOrderId());
+                //bracketSample(wrapper.getClient(), wrapper.getCurrentOrderId());
+                //bulletins(wrapper.getClient());
+                //reutersFundamentals(wrapper.getClient());
+                //marketDataType(wrapper.getClient());
+                //historicalDataRequests(wrapper.getClient());
+                //accountOperations(wrapper.getClient());
+                //newsOperations(wrapper.getClient());
+                
+                Thread.sleep(100000);
+                m_client.eDisconnect();
+        }
+        
 	private static void orderOperations(EClientSocket client, int nextOrderId) throws InterruptedException {
 		
 		/*** Requesting the next valid id ***/
@@ -297,7 +298,21 @@ public class Testbed {
 		client.cancelPositions();
 		//! [cancelpositions]
     }
-	
+
+	private static void newsOperations(EClientSocket client) throws InterruptedException {
+
+		/*** Requesting news ticks ***/
+		//! [reqNewsTicks]
+		client.reqMktData(10001, ContractSamples.USStockAtSmart(), "mdoff,292", false, null);
+		//! [reqNewsTicks]
+
+		Thread.sleep(10000);
+
+		//! [cancelNewsTicks]
+		client.cancelMktData(10001);
+		//! [cancelNewsTicks]
+	}
+
 	private static void conditionSamples(EClientSocket client, int nextOrderId) {
 		
 		//! [order_conditioning_activate]
@@ -364,35 +379,36 @@ public class Testbed {
 		//! [algo_base_order]
 		
 		//! [arrivalpx]
-		AvailableAlgoParams.FillArrivalPriceParams(baseOrder, 0.1, "Aggressive", "09:00:00 CET", "16:00:00 CET", true, true);
+		AvailableAlgoParams.FillArrivalPriceParams(baseOrder, 0.1, "Aggressive", "09:00:00 CET", "16:00:00 CET", true, true, 100000);
 		client.placeOrder(nextOrderId++, ContractSamples.USStockAtSmart(), baseOrder);
 		//! [arrivalpx]
 		
 		Thread.sleep(500);
 		
 		//! [darkice]
-		AvailableAlgoParams.FillDarkIceParams(baseOrder, 10, "09:00:00 CET", "16:00:00 CET", true);
+		AvailableAlgoParams.FillDarkIceParams(baseOrder, 10, "09:00:00 CET", "16:00:00 CET", true, 100000);
 		client.placeOrder(nextOrderId++, ContractSamples.USStockAtSmart(), baseOrder);
 		//! [darkice]
 		
 		Thread.sleep(500);
 		
 		//! [ad]
-		AvailableAlgoParams.FillAccumulateDistributeParams(baseOrder, 10, 60, true, true, 1, true, true, "09:00:00 CET", "16:00:00 CET");
+		// The Time Zone in "startTime" and "endTime" attributes is ignored and always defaulted to GMT
+		AvailableAlgoParams.FillAccumulateDistributeParams(baseOrder, 10, 60, true, true, 1, true, true, "20161010-12:00:00 GMT", "20161010-16:00:00 GMT");
 		client.placeOrder(nextOrderId++, ContractSamples.USStockAtSmart(), baseOrder);
 		//! [ad]
 		
 		Thread.sleep(500);
 		
 		//! [twap]
-		AvailableAlgoParams.FillTwapParams(baseOrder, "Marketable", "09:00:00 CET", "16:00:00 CET", true);
+		AvailableAlgoParams.FillTwapParams(baseOrder, "Marketable", "09:00:00 CET", "16:00:00 CET", true, 100000);
 		client.placeOrder(nextOrderId++, ContractSamples.USStockAtSmart(), baseOrder);
 		//! [twap]
 		
 		Thread.sleep(500);
 		
 		//! [vwap]
-		AvailableAlgoParams.FillVwapParams(baseOrder, 0.2, "09:00:00 CET", "16:00:00 CET", true, true);
+		AvailableAlgoParams.FillVwapParams(baseOrder, 0.2, "09:00:00 CET", "16:00:00 CET", true, true, true, 100000);
 		client.placeOrder(nextOrderId++, ContractSamples.USStockAtSmart(), baseOrder);
 		//! [vwap]
 		
@@ -415,6 +431,31 @@ public class Testbed {
 		client.placeOrder(nextOrderId++, ContractSamples.USStockAtSmart(), baseOrder);
 		//! [adaptive]		
 		
+		//! [closepx]
+		AvailableAlgoParams.FillClosePriceParams(baseOrder, 0.5, "Neutral", "12:00:00 EST", true, 100000);
+		client.placeOrder(nextOrderId++, ContractSamples.USStockAtSmart(), baseOrder);
+		//! [closepx]
+                
+		//! [pctvol]
+		AvailableAlgoParams.FillPctVolParams(baseOrder, 0.5, "12:00:00 EST", "14:00:00 EST", true, 100000);
+		client.placeOrder(nextOrderId++, ContractSamples.USStockAtSmart(), baseOrder);
+		//! [pctvol]               
+                
+		//! [pctvolpx]
+		AvailableAlgoParams.FillPriceVariantPctVolParams(baseOrder, 0.1, 0.05, 0.01, 0.2, "12:00:00 EST", "14:00:00 EST", true, 100000);
+		client.placeOrder(nextOrderId++, ContractSamples.USStockAtSmart(), baseOrder);
+		//! [pctvolpx]
+                
+		//! [pctvolsz]
+		AvailableAlgoParams.FillSizeVariantPctVolParams(baseOrder, 0.2, 0.4, "12:00:00 EST", "14:00:00 EST", true, 100000);
+		client.placeOrder(nextOrderId++, ContractSamples.USStockAtSmart(), baseOrder);
+		//! [pctvolsz]
+                
+		//! [pctvoltm]
+		AvailableAlgoParams.FillTimeVariantPctVolParams(baseOrder, 0.2, 0.4, "12:00:00 EST", "14:00:00 EST", true, 100000);
+		client.placeOrder(nextOrderId++, ContractSamples.USStockAtSmart(), baseOrder);
+		//! [pctvoltm]
+                
 	}
 	
 	private static void bracketSample(EClientSocket client, int nextOrderId) throws InterruptedException {
@@ -518,6 +559,9 @@ public class Testbed {
 		client.replaceFA(FADataType.PROFILES.ordinal(), FAMethodSamples.FaTwoProfiles);
 		//! [replacefatwoprofiles]
 		
+                //! [reqSoftDollarTiers]
+                client.reqSoftDollarTiers(4001);
+                //! [reqSoftDollarTiers]
 	}
 	
 	private static void testDisplayGroups(EClientSocket client) throws InterruptedException {

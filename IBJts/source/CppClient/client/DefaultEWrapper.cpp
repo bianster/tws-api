@@ -1,10 +1,10 @@
-﻿/* Copyright (C) 2013 Interactive Brokers LLC. All rights reserved. This code is subject to the terms
+/* Copyright (C) 2013 Interactive Brokers LLC. All rights reserved. This code is subject to the terms
  * and conditions of the IB API Non-Commercial License or the IB API Commercial License, as applicable. */
 
 #include "StdAfx.h"
 #include "DefaultEWrapper.h"
 
-void DefaultEWrapper::tickPrice( TickerId tickerId, TickType field, double price, int canAutoExecute) { }
+void DefaultEWrapper::tickPrice( TickerId tickerId, TickType field, double price, const TickAttrib& attribs) { }
 void DefaultEWrapper::tickSize( TickerId tickerId, TickType field, int size) { }
 void DefaultEWrapper::tickOptionComputation( TickerId tickerId, TickType tickType, double impliedVol, double delta,
 	   double optPrice, double pvDividend, double gamma, double vega, double theta, double undPrice) { }
@@ -42,6 +42,7 @@ void DefaultEWrapper::managedAccounts( const std::string& accountsList) { }
 void DefaultEWrapper::receiveFA(faDataType pFaDataType, const std::string& cxml) { }
 void DefaultEWrapper::historicalData(TickerId reqId, const std::string& date, double open, double high, 
 	   double low, double close, int volume, int barCount, double WAP, int hasGaps) { }
+void DefaultEWrapper::historicalDataEnd(int reqId, std::string startDateStr, std::string endDateStr) { }
 void DefaultEWrapper::scannerParameters(const std::string& xml) { }
 void DefaultEWrapper::scannerData(int reqId, int rank, const ContractDetails& contractDetails,
 	   const std::string& distance, const std::string& benchmark, const std::string& projection,
@@ -73,5 +74,9 @@ void DefaultEWrapper::accountUpdateMultiEnd( int reqId) { }
 void DefaultEWrapper::securityDefinitionOptionalParameter(int reqId, const std::string& exchange, int underlyingConId, const std::string& tradingClass, const std::string& multiplier, std::set<std::string> expirations, std::set<double> strikes) { }
 void DefaultEWrapper::securityDefinitionOptionalParameterEnd(int reqId) { }
 void DefaultEWrapper::softDollarTiers(int reqId, const std::vector<SoftDollarTier> &tiers) { }
+void DefaultEWrapper::familyCodes(const std::vector<FamilyCode> &familyCodes) { }
+void DefaultEWrapper::symbolSamples(int reqId, const std::vector<ContractDescription> &contractDescriptions) { }
+void DefaultEWrapper::mktDepthExchanges(const std::vector<DepthMktDataDescription> &depthMktDataDescriptions) { }
+void DefaultEWrapper::tickNews(int tickerId, time_t timeStamp, const std::string& providerCode, const std::string& articleId, const std::string& headline, const std::string& extraData) { }
 
 

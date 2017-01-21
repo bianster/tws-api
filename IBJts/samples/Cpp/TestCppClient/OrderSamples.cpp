@@ -345,6 +345,24 @@ Order OrderSamples::LimitOrder(std::string action, double quantity, double limit
 }
 
 	/// <summary>
+	/// A Limit order is an order to buy or sell at a specified price or better. The Limit order ensures that if the order fills, 
+	/// it will not fill at a price less favorable than your limit price, but it does not guarantee a fill.
+	/// cashQty - order size in monetary terms
+	/// Products: BOND, CFD, CASH, FUT, FOP, OPT, STK, WAR
+	/// </summary>
+Order OrderSamples::LimitOrderWithCashQty(std::string action, double quantity, double limitPrice, double cashQty){
+	// ! [limitorder]
+	Order order;
+	order.action = action;
+	order.orderType = "LMT";
+	order.totalQuantity = quantity;
+	order.lmtPrice = limitPrice;
+	order.cashQty = cashQty;
+	// ! [limitorder]
+	return order;
+}
+
+	/// <summary>
     /// A Limit if Touched is an order to buy (or sell) a contract at a specified price or better, below (or above) the market. This order is 
     /// held in the system until the trigger price is touched. An LIT order is similar to a stop limit order, except that an LIT sell order is 
     /// placed above the current market price, and a stop limit sell order is placed below.
@@ -842,6 +860,29 @@ Order OrderSamples::AttachAdjustableToStopLimit(Order parent, double attachedOrd
 	//And the given limit price
 	order.adjustedStopLimitPrice = adjustedStopLimitPrice;
 	//! [adjustable_stop_limit]
+	return order;
+}
+
+Order OrderSamples::AttachAdjustableToTrail(Order parent, double attachedOrderStopPrice, double triggerPrice, double adjustStopPrice, double adjustedTrailAmount, int trailUnit){
+	//! [adjustable_trail]
+	//Attached order is a conventional STP order
+	Order order;
+	order.action = (parent.action == "BUY") ? "SELL": "BUY";
+	order.orderType = "STP";
+	order.totalQuantity = parent.totalQuantity;
+	order.auxPrice = attachedOrderStopPrice;
+	order.parentId = parent.orderId;
+	//When trigger price is penetrated
+	order.triggerPrice = triggerPrice;
+	//The parent order will be turned into a TRAIL order
+	order.adjustedOrderType = "TRAIL";
+	//With a stop price of...
+	order.adjustedStopPrice = adjustStopPrice;
+	//traling by and amount (0) or a percent (1)...
+	order.adjustableTrailingUnit = trailUnit;
+	//of...
+	order.adjustedTrailingAmount = adjustedTrailAmount;
+	//! [adjustable_trail]
 	return order;
 }
 

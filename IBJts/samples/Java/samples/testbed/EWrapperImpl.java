@@ -4,16 +4,20 @@ import java.util.Set;
 
 import com.ib.client.CommissionReport;
 import com.ib.client.Contract;
+import com.ib.client.ContractDescription;
 import com.ib.client.ContractDetails;
 import com.ib.client.DeltaNeutralContract;
+import com.ib.client.DepthMktDataDescription;
 import com.ib.client.EClientSocket;
 import com.ib.client.EJavaSignal;
 import com.ib.client.EReaderSignal;
 import com.ib.client.EWrapper;
 import com.ib.client.Execution;
+import com.ib.client.FamilyCode;
 import com.ib.client.Order;
 import com.ib.client.OrderState;
 import com.ib.client.SoftDollarTier;
+import com.ib.client.TickAttr;
 import com.ib.client.TickType;
 
 //! [ewrapperimpl]
@@ -46,8 +50,9 @@ public class EWrapperImpl implements EWrapper {
 	
 	 //! [tickprice]
 	@Override
-	public void tickPrice(int tickerId, int field, double price, int canAutoExecute) {
-		System.out.println("Tick Price. Ticker Id:"+tickerId+", Field: "+field+", Price: "+price+", CanAutoExecute: "+canAutoExecute);
+	public void tickPrice(int tickerId, int field, double price, TickAttr attribs) {
+		System.out.println("Tick Price. Ticker Id:"+tickerId+", Field: "+field+", Price: "+price+", CanAutoExecute: "+ attribs.canAutoExecute()
+		+ ", pastLimit: " + attribs.pastLimit());
 	}
 	//! [tickprice]
 	
@@ -197,11 +202,15 @@ public class EWrapperImpl implements EWrapper {
 		System.out.println("UpdateMarketDepth. "+tickerId+" - Position: "+position+", Operation: "+operation+", Side: "+side+", Price: "+price+", Size: "+size+"");
 	}
 	//! [updatemktdepth]
+	
+	//! [updatemktdepthl2]
 	@Override
 	public void updateMktDepthL2(int tickerId, int position,
 			String marketMaker, int operation, int side, double price, int size) {
-		System.out.println("updateMktDepthL2");
+		System.out.println("UpdateMarketDepthL2. "+tickerId+" - Position: "+position+", Operation: "+operation+", Side: "+side+", Price: "+price+", Size: "+size+"");
 	}
+	//! [updatemktdepthl2]
+	
 	//! [updatenewsbulletin]
 	@Override
 	public void updateNewsBulletin(int msgId, int msgType, String message,
@@ -232,6 +241,14 @@ public class EWrapperImpl implements EWrapper {
 		System.out.println("HistoricalData. "+reqId+" - Date: "+date+", Open: "+open+", High: "+high+", Low: "+low+", Close: "+close+", Volume: "+volume+", Count: "+count+", WAP: "+WAP+", HasGaps: "+hasGaps);
 	}
 	//! [historicaldata]
+	
+	//! [historicaldataend]
+	@Override
+	public void historicalDataEnd(int reqId, String startDateStr, String endDateStr) {
+		System.out.println("HistoricalDataEnd. "+reqId+" - Start Date: "+startDateStr+", End Date: "+endDateStr);
+	}
+	//! [historicaldataend]
+	
 	
 	//! [scannerparameters]
 	@Override
@@ -433,13 +450,63 @@ public class EWrapperImpl implements EWrapper {
 		// TODO Auto-generated method stub
 		
 	}
+    
+    //! [softDollarTiers]
 	@Override
 	public void softDollarTiers(int reqId, SoftDollarTier[] tiers) {
 		for (SoftDollarTier tier : tiers) {
-			System.out.print("tier: " + tier + ", ");
+			System.out.print("tier: " + tier.toString() + ", ");
 		}
 		
 		System.out.println();
 	}
+    //! [softDollarTiers]
 
+    //! [familyCodes]
+    @Override
+    public void familyCodes(FamilyCode[] familyCodes) {
+        for (FamilyCode fc : familyCodes) {
+            System.out.print("Family Code. AccountID: " + fc.accountID() + ", FamilyCode: " + fc.familyCodeStr());
+        }
+
+        System.out.println();
+    }
+    //! [familyCodes]
+    
+    //! [symbolSamples]
+    @Override
+    public void symbolSamples(int reqId, ContractDescription[] contractDescriptions) {
+        System.out.println("Contract Descriptions. Request: " + reqId + "\n");
+        for (ContractDescription  cd : contractDescriptions) {
+            Contract c = cd.contract();
+            StringBuilder derivativeSecTypesSB = new StringBuilder();
+            for (String str : cd.derivativeSecTypes()) {
+                derivativeSecTypesSB.append(str);
+                derivativeSecTypesSB.append(",");
+            }
+            System.out.print("Contract. ConId: " + c.conid() + ", Symbol: " + c.symbol() + ", SecType: " + c.secType() + 
+                    ", PrimaryExch: " + c.primaryExch() + ", Currency: " + c.currency() + 
+                    ", DerivativeSecTypes:[" + derivativeSecTypesSB.toString() + "]");
+        }
+
+        System.out.println();
+    }
+    //! [symbolSamples]
+
+	//! [mktDepthExchanges]
+	@Override
+	public void mktDepthExchanges(DepthMktDataDescription[] depthMktDataDescriptions) {
+		for (DepthMktDataDescription depthMktDataDescription : depthMktDataDescriptions) {
+			System.out.println("Depth Mkt Data Description. Exchange: " + depthMktDataDescription.exchange() 
+			+ ", SecType: " + depthMktDataDescription.secType() + ", isL2: " + depthMktDataDescription.isL2());
+		}
+	}
+	//! [mktDepthExchanges]
+
+	//! [tickNews]
+	@Override
+	public void tickNews(int tickerId, long timeStamp, String providerCode, String articleId, String headline, String extraData) {
+		System.out.println("Tick News. TickerId: " + tickerId + ", TimeStamp: " + timeStamp + ", ProviderCode: " + providerCode + ", ArticleId: " + articleId + ", Headline: " + headline + ", ExtraData: " + extraData + "\n");
+	}
+	//! [tickNews]
 }

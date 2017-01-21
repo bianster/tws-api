@@ -9,7 +9,7 @@ public interface EWrapper {
     ///////////////////////////////////////////////////////////////////////
     // Interface methods
     ///////////////////////////////////////////////////////////////////////
-    void tickPrice( int tickerId, int field, double price, int canAutoExecute);
+    void tickPrice( int tickerId, int field, double price, TickAttr attrib);
     void tickSize( int tickerId, int field, int size);
     void tickOptionComputation( int tickerId, int field, double impliedVol,
     		double delta, double optPrice, double pvDividend,
@@ -76,5 +76,10 @@ public interface EWrapper {
     void securityDefinitionOptionalParameter(int reqId, String exchange, int underlyingConId, String tradingClass, String multiplier, Set<String> expirations, Set<Double> strikes);
     void securityDefinitionOptionalParameterEnd(int reqId);
 	void softDollarTiers(int reqId, SoftDollarTier[] tiers);
+    void familyCodes(FamilyCode[] familyCodes);
+    void symbolSamples(int reqId, ContractDescription[] contractDescriptions);
+	void historicalDataEnd(int reqId, String startDateStr, String endDateStr);
+    void mktDepthExchanges(DepthMktDataDescription[] depthMktDataDescriptions);
+    void tickNews(int tickerId, long timeStamp, String providerCode, String articleId, String headline, String extraData);
 }
 

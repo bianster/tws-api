@@ -1,4 +1,4 @@
-﻿/* Copyright (C) 2013 Interactive Brokers LLC. All rights reserved. This code is subject to the terms
+/* Copyright (C) 2013 Interactive Brokers LLC. All rights reserved. This code is subject to the terms
  * and conditions of the IB API Non-Commercial License or the IB API Commercial License, as applicable. */
 
 #pragma once
@@ -8,7 +8,7 @@ class TWSAPIDLLEXP DefaultEWrapper :
     public EWrapper
 {
 public:
-   virtual void tickPrice( TickerId tickerId, TickType field, double price, int canAutoExecute);
+   virtual void tickPrice( TickerId tickerId, TickType field, double price, const TickAttrib& attribs);
    virtual void tickSize( TickerId tickerId, TickType field, int size);
    virtual void tickOptionComputation( TickerId tickerId, TickType tickType, double impliedVol, double delta,
 	   double optPrice, double pvDividend, double gamma, double vega, double theta, double undPrice);
@@ -46,6 +46,7 @@ public:
    virtual void receiveFA(faDataType pFaDataType, const std::string& cxml);
    virtual void historicalData(TickerId reqId, const std::string& date, double open, double high, 
 	   double low, double close, int volume, int barCount, double WAP, int hasGaps);
+   virtual void historicalDataEnd(int reqId, std::string startDateStr, std::string endDateStr);
    virtual void scannerParameters(const std::string& xml);
    virtual void scannerData(int reqId, int rank, const ContractDetails& contractDetails,
 	   const std::string& distance, const std::string& benchmark, const std::string& projection,
@@ -77,5 +78,9 @@ public:
    virtual void securityDefinitionOptionalParameter(int reqId, const std::string& exchange, int underlyingConId, const std::string& tradingClass, const std::string& multiplier, std::set<std::string> expirations, std::set<double> strikes);
    virtual void securityDefinitionOptionalParameterEnd(int reqId);
    virtual void softDollarTiers(int reqId, const std::vector<SoftDollarTier> &tiers);
+   virtual void familyCodes(const std::vector<FamilyCode> &familyCodes);
+   virtual void symbolSamples(int reqId, const std::vector<ContractDescription> &contractDescriptions);
+   virtual void mktDepthExchanges(const std::vector<DepthMktDataDescription> &depthMktDataDescriptions);
+   virtual void tickNews(int tickerId, time_t timeStamp, const std::string& providerCode, const std::string& articleId, const std::string& headline, const std::string& extraData);
 };
 

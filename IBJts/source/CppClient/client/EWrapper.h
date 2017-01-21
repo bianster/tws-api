@@ -1,4 +1,4 @@
-﻿/* Copyright (C) 2013 Interactive Brokers LLC. All rights reserved. This code is subject to the terms
+/* Copyright (C) 2013 Interactive Brokers LLC. All rights reserved. This code is subject to the terms
  * and conditions of the IB API Non-Commercial License or the IB API Commercial License, as applicable. */
 
 #pragma once
@@ -7,6 +7,9 @@
 
 #include "CommonDefs.h"
 #include "SoftDollarTier.h"
+#include "DepthMktDataDescription.h"
+#include "FamilyCode.h"
+#include "TickAttrib.h"
 #include <string>
 #include <set>
 
@@ -82,14 +85,19 @@ enum TickType { BID_SIZE, BID, ASK, ASK_SIZE, LAST, LAST_SIZE,
 				RT_TRD_VOLUME,
 				CREDITMAN_MARK_PRICE,
 				CREDITMAN_SLOW_MARK_PRICE,
+				DELAYED_BID_OPTION_COMPUTATION,
+				DELAYED_ASK_OPTION_COMPUTATION,
+				DELAYED_LAST_OPTION_COMPUTATION,
+				DELAYED_MODEL_OPTION_COMPUTATION,
 				NOT_SET };
 
 inline bool isPrice( TickType tickType) {
-	return tickType == BID || tickType == ASK || tickType == LAST;
+	return tickType == BID || tickType == ASK || tickType == LAST || tickType == DELAYED_BID || tickType == DELAYED_ASK || tickType == DELAYED_LAST;
 }
 
 struct Contract;
 struct ContractDetails;
+struct ContractDescription;
 struct Order;
 struct OrderState;
 struct Execution;
@@ -101,7 +109,7 @@ class EWrapper
 public:
    virtual ~EWrapper() {};
 
-   virtual void tickPrice( TickerId tickerId, TickType field, double price, int canAutoExecute) = 0;
+   virtual void tickPrice( TickerId tickerId, TickType field, double price, const TickAttrib& attrib) = 0;
    virtual void tickSize( TickerId tickerId, TickType field, int size) = 0;
    virtual void tickOptionComputation( TickerId tickerId, TickType tickType, double impliedVol, double delta,
 	   double optPrice, double pvDividend, double gamma, double vega, double theta, double undPrice) = 0;
@@ -139,6 +147,7 @@ public:
    virtual void receiveFA(faDataType pFaDataType, const std::string& cxml) = 0;
    virtual void historicalData(TickerId reqId, const std::string& date, double open, double high, 
 	   double low, double close, int volume, int barCount, double WAP, int hasGaps) = 0;
+   virtual void historicalDataEnd(int reqId, std::string startDateStr, std::string endDateStr) = 0;
    virtual void scannerParameters(const std::string& xml) = 0;
    virtual void scannerData(int reqId, int rank, const ContractDetails& contractDetails,
 	   const std::string& distance, const std::string& benchmark, const std::string& projection,
@@ -170,6 +179,10 @@ public:
    virtual void securityDefinitionOptionalParameter(int reqId, const std::string& exchange, int underlyingConId, const std::string& tradingClass, const std::string& multiplier, std::set<std::string> expirations, std::set<double> strikes) = 0;
    virtual void securityDefinitionOptionalParameterEnd(int reqId) = 0;
    virtual void softDollarTiers(int reqId, const std::vector<SoftDollarTier> &tiers) = 0;
+   virtual void familyCodes(const std::vector<FamilyCode> &familyCodes) = 0;
+   virtual void symbolSamples(int reqId, const std::vector<ContractDescription> &contractDescriptions) = 0;
+   virtual void mktDepthExchanges(const std::vector<DepthMktDataDescription> &depthMktDataDescriptions) = 0;
+   virtual void tickNews(int tickerId, time_t timeStamp, const std::string& providerCode, const std::string& articleId, const std::string& headline, const std::string& extraData) = 0;
 };
 
 

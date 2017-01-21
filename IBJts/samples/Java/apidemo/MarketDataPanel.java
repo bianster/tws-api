@@ -7,6 +7,8 @@ import java.awt.BorderLayout;
 import java.awt.Desktop;
 import java.awt.Dimension;
 import java.awt.GridLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.io.File;
 import java.io.FileWriter;
 import java.util.ArrayList;
@@ -24,7 +26,9 @@ import javax.swing.table.AbstractTableModel;
 import javax.swing.table.TableCellRenderer;
 
 import com.ib.client.Contract;
+import com.ib.client.ContractDescription;
 import com.ib.client.ContractDetails;
+import com.ib.client.MarketDataType;
 import com.ib.client.ScannerSubscription;
 import com.ib.client.Types.BarSize;
 import com.ib.client.Types.DeepSide;
@@ -37,6 +41,7 @@ import com.ib.controller.ApiController.IHistoricalDataHandler;
 import com.ib.controller.ApiController.IRealTimeBarHandler;
 import com.ib.controller.ApiController.IScannerHandler;
 import com.ib.controller.ApiController.ISecDefOptParamsReqHandler;
+import com.ib.controller.ApiController.ISymbolSamplesHandler;
 import com.ib.controller.Bar;
 import com.ib.controller.Instrument;
 import com.ib.controller.ScanCode;
@@ -62,29 +67,185 @@ public class MarketDataPanel extends JPanel {
 		m_requestPanel.addTab( "Real-time Bars", new RealtimeRequestPanel() );
 		m_requestPanel.addTab( "Market Scanner", new ScannerRequestPanel() );
 		m_requestPanel.addTab("Security defininition optional parameters", new SecDefOptParamsPanel());
+		m_requestPanel.addTab( "Matching Symbols", new RequestMatchingSymbolsPanel());
+		m_requestPanel.addTab( "Market Depth Exchanges", new MktDepthExchangesPanel() );
 		
 		setLayout( new BorderLayout() );
 		add( m_requestPanel, BorderLayout.NORTH);
 		add( m_resultsPanel);
 	}
+
+    private class RequestMatchingSymbolsPanel extends JPanel {
+        final UpperField m_pattern = new UpperField();
+
+        RequestMatchingSymbolsPanel() {
+            m_pattern.setText( "IBM");
+            HtmlButton requestMatchingSymbolsButton = new HtmlButton( "Request Matching Symbols") {
+                @Override protected void actionPerformed() {
+                    onRequestMatchingSymbols();
+                }
+            };
+
+            VerticalPanel paramsPanel = new VerticalPanel();
+            paramsPanel.add( "Pattern", m_pattern, Box.createHorizontalStrut(10), requestMatchingSymbolsButton);
+            setLayout( new BorderLayout() );
+            add( paramsPanel, BorderLayout.NORTH);
+        }
+
+        protected void onRequestMatchingSymbols() {
+            SymbolSamplesPanel symbolSamplesPanel = new SymbolSamplesPanel();
+            m_resultsPanel.addTab( "Symbol Samples " + m_pattern.getText(), symbolSamplesPanel, true, true);
+            ApiDemo.INSTANCE.controller().reqMatchingSymbols(m_pattern.getText(), symbolSamplesPanel);
+        }
+    }
+
+    static class SymbolSamplesPanel extends NewTabPanel implements ISymbolSamplesHandler {
+        final SymbolSamplesModel m_model = new SymbolSamplesModel();
+        final ArrayList<SymbolSamplesRow> m_rows = new ArrayList<SymbolSamplesRow>();
+
+        SymbolSamplesPanel() {
+            JTable table = new JTable( m_model);
+            JScrollPane scroll = new JScrollPane( table);
+            setLayout( new BorderLayout() );
+            add( scroll);
+        };
+
+        /** Called when the tab is first visited. */
+        @Override public void activated() { /* noop */ }
+
+        /** Called when the tab is closed by clicking the X. */
+        @Override public void closed() { /* noop */ }
+
+        @Override
+        public void symbolSamples(ContractDescription[] contractDescriptions) {
+            for (int i = 0; i < contractDescriptions.length; i++) {
+                StringBuilder sb = new StringBuilder();
+                for (int j = 0; j < contractDescriptions[i].derivativeSecTypes().length; j++){
+                    sb.append(contractDescriptions[i].derivativeSecTypes()[j] + " ");
+                }
+                SymbolSamplesRow symbolSamplesRow = new SymbolSamplesRow(
+                        contractDescriptions[i].contract().conid(),
+                        contractDescriptions[i].contract().symbol(),
+                        contractDescriptions[i].contract().secType().getApiString(),
+                        contractDescriptions[i].contract().primaryExch(),
+                        contractDescriptions[i].contract().currency(),
+                        sb.toString()						
+                        );
+                m_rows.add( symbolSamplesRow);
+            }
+            fire();
+        }
+
+        private void fire() {
+            SwingUtilities.invokeLater( new Runnable() {
+                @Override public void run() {
+                    m_model.fireTableRowsInserted( m_rows.size() - 1, m_rows.size() - 1);
+                    revalidate();
+                    repaint();
+                }
+           });
+        }
+
+        class SymbolSamplesModel extends AbstractTableModel {
+            @Override public int getRowCount() {
+                return m_rows.size();
+            }
+
+            @Override public int getColumnCount() {
+                return 6;
+            }
+
+            @Override public String getColumnName(int col) {
+                switch( col) {
+                    case 0: return "ConId";
+                    case 1: return "Symbol";
+                    case 2: return "SecType";
+                    case 3: return "PrimaryExch";
+                    case 4: return "Currency";
+                    case 5: return "Derivative SecTypes";
+                    default: return null;
+                }
+            }
+
+            @Override public Object getValueAt(int rowIn, int col) {
+                SymbolSamplesRow symbolSamplesRow = m_rows.get( rowIn);
+                switch( col) {
+                    case 0: return symbolSamplesRow.m_conId;
+                    case 1: return symbolSamplesRow.m_symbol;
+                    case 2: return symbolSamplesRow.m_secType;
+                    case 3: return symbolSamplesRow.m_primaryExch;
+                    case 4: return symbolSamplesRow.m_currency;
+                    case 5: return symbolSamplesRow.m_derivativeSecTypes;
+                    default: return null;
+                }
+            }
+        }
+
+        static class SymbolSamplesRow {
+            int m_conId;
+            String m_symbol;
+            String m_secType;
+            String m_primaryExch;
+            String m_currency;
+            String m_derivativeSecTypes;
+
+            public SymbolSamplesRow(int conId, String symbol, String secType, String primaryExch, String currency, String derivativeSecTypes) {
+                update( conId, symbol, secType, primaryExch, currency, derivativeSecTypes);
+            }
+
+            void update( int conId, String symbol, String secType, String primaryExch, String currency, String derivativeSecTypes) {
+                m_conId = conId;
+                m_symbol = symbol;
+                m_secType = secType;
+                m_primaryExch = primaryExch;
+                m_currency = currency;
+                m_derivativeSecTypes = derivativeSecTypes;
+            }
+        }
+    }
 	
 	private class TopRequestPanel extends JPanel {
 		final ContractPanel m_contractPanel = new ContractPanel(m_contract);
-		
+		protected TCombo<String> m_marketDataType = new TCombo<String>( MarketDataType.getFields() );
+
 		TopRequestPanel() {
+			m_marketDataType.setSelectedItem( MarketDataType.REALTIME);
+
 			HtmlButton reqTop = new HtmlButton( "Request Top Market Data") {
 				@Override protected void actionPerformed() {
 					onTop();
 				}
 			};
-			
+
+			HtmlButton cancelTop = new HtmlButton( "Cancel Top Market Data") {
+				@Override protected void actionPerformed() {
+					onCancelTop();
+				}
+			};
+
+			m_marketDataType.addActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent event) {
+					ApiDemo.INSTANCE.controller().reqMktDataType( MarketDataType.getField(m_marketDataType.getSelectedItem()));
+				}
+			});
+
+			VerticalPanel paramPanel = new VerticalPanel();
+			paramPanel.add( "Market data type", m_marketDataType);
+
 			VerticalPanel butPanel = new VerticalPanel();
+			butPanel.add( Box.createVerticalStrut( 40));
 			butPanel.add( reqTop);
-			
+			butPanel.add( cancelTop);
+
+			JPanel rightPanel = new StackPanel();
+			rightPanel.add( paramPanel);
+			rightPanel.add( Box.createVerticalStrut( 20));
+			rightPanel.add( butPanel);
+
 			setLayout( new BoxLayout( this, BoxLayout.X_AXIS) );
 			add( m_contractPanel);
 			add( Box.createHorizontalStrut(20));
-			add( butPanel);
+			add( rightPanel);
 		}
 
 		protected void onTop() {
@@ -96,30 +257,21 @@ public class MarketDataPanel extends JPanel {
 			
 			m_topResultPanel.m_model.addRow( m_contract);
 		}
+
+		protected void onCancelTop() {
+			m_topResultPanel.m_model.removeSelectedRows();
+		}
 	}
 	
 	private class TopResultsPanel extends NewTabPanel {
 		final TopModel m_model = new TopModel();
 		final JTable m_tab = new TopTable( m_model);
-		final TCombo<MktDataType> m_typeCombo = new TCombo<MktDataType>( MktDataType.values() );
 
 		TopResultsPanel() {
-			m_typeCombo.removeItemAt( 0);
-
 			JScrollPane scroll = new JScrollPane( m_tab);
-
-			HtmlButton reqType = new HtmlButton( "Go") {
-				@Override protected void actionPerformed() {
-					onReqType();
-				}
-			};
-
-			VerticalPanel butPanel = new VerticalPanel();
-			butPanel.add( "Market data type", m_typeCombo, reqType);
 			
 			setLayout( new BorderLayout() );
 			add( scroll);
-			add( butPanel, BorderLayout.SOUTH);
 		}
 		
 		/** Called when the tab is first visited. */
@@ -132,18 +284,8 @@ public class MarketDataPanel extends JPanel {
 			m_topResultPanel = null;
 		}
 
-		void onReqType() {
-			ApiDemo.INSTANCE.controller().reqMktDataType( m_typeCombo.getSelectedItem() );
-		}
-		
 		class TopTable extends JTable {
 			public TopTable(TopModel model) { super( model); }
-
-			@Override public TableCellRenderer getCellRenderer(int rowIn, int column) {
-				TableCellRenderer rend = super.getCellRenderer(rowIn, column);
-				m_model.color( rend, rowIn, getForeground() );
-				return rend;
-			}
 		}
 	}		
 	

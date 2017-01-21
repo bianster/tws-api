@@ -18,6 +18,7 @@
 #include "EDecoder.h"
 #include "EMessage.h"
 #include "ETransport.h"
+#include "FamilyCode.h"
 
 #include <sstream>
 #include <iomanip>
@@ -78,12 +79,12 @@ void EClient::EncodeFieldMax(std::ostream& os, double doubleValue)
 // member funcs
 EClient::EClient( EWrapper *ptr, ETransport *pTransport)
 	: m_pEWrapper(ptr)
+	, m_transport(pTransport)
 	, m_clientId(-1)
 	, m_connState(CS_DISCONNECTED)
 	, m_extraAuth(false)
 	, m_serverVersion(0)
 	, m_useV100Plus(true)
-    , m_transport(pTransport)
 {
 }
 
@@ -1367,6 +1368,14 @@ void EClient::placeOrder( OrderId id, const Contract& contract, const Order& ord
 		}
 	}
 
+	if (m_serverVersion < MIN_SERVER_VER_CASH_QTY) {
+		if (order.cashQty != UNSET_DOUBLE) {
+			m_pEWrapper->error( id, UPDATE_TWS.code(), UPDATE_TWS.msg() +
+				"  It does not support cash quantity parameter");
+			return;
+		}
+	}
+
 
 	std::stringstream msg;
 	prepareBuffer( msg);
@@ -1760,6 +1769,10 @@ void EClient::placeOrder( OrderId id, const Contract& contract, const Order& ord
 	if (m_serverVersion >= MIN_SERVER_VER_SOFT_DOLLAR_TIER) {
 		ENCODE_FIELD(order.softDollarTier.name());
 		ENCODE_FIELD(order.softDollarTier.val());
+	}
+
+	if (m_serverVersion >= MIN_SERVER_VER_CASH_QTY) {
+		ENCODE_FIELD_MAX( order.cashQty);
 	}
 
 	closeAndSend( msg.str());
@@ -2699,6 +2712,72 @@ void EClient::reqSoftDollarTiers(int reqId)
 
 	ENCODE_FIELD(REQ_SOFT_DOLLAR_TIERS);
     ENCODE_FIELD(reqId);
+
+	closeAndSend(msg.str());
+}
+
+void EClient::reqFamilyCodes()
+{
+	if( !isConnected()) {
+		m_pEWrapper->error( NO_VALID_ID, NOT_CONNECTED.code(), NOT_CONNECTED.msg());
+		return;
+	}
+
+	if( m_serverVersion < MIN_SERVER_VER_REQ_FAMILY_CODES) {
+		m_pEWrapper->error(NO_VALID_ID, UPDATE_TWS.code(), UPDATE_TWS.msg() +
+			"  It does not support family codes requests.");
+		return;
+	}
+
+	std::stringstream msg;
+	prepareBuffer(msg);
+
+	ENCODE_FIELD(REQ_FAMILY_CODES);
+
+	closeAndSend(msg.str());
+}
+
+void EClient::reqMatchingSymbols(int reqId, const std::string& pattern)
+{
+	if( !isConnected()) {
+		m_pEWrapper->error( NO_VALID_ID, NOT_CONNECTED.code(), NOT_CONNECTED.msg());
+		return;
+	}
+
+	if( m_serverVersion < MIN_SERVER_VER_REQ_MATCHING_SYMBOLS) {
+		m_pEWrapper->error(NO_VALID_ID, UPDATE_TWS.code(), UPDATE_TWS.msg() +
+			"  It does not support matching symbols requests.");
+		return;
+	}
+
+	std::stringstream msg;
+	prepareBuffer(msg);
+
+	ENCODE_FIELD(REQ_MATCHING_SYMBOLS);
+	ENCODE_FIELD(reqId);
+	ENCODE_FIELD(pattern);
+
+	closeAndSend(msg.str());
+}
+
+void EClient::reqMktDepthExchanges()
+{
+	if( !isConnected()) {
+		m_pEWrapper->error( NO_VALID_ID, NOT_CONNECTED.code(), NOT_CONNECTED.msg());
+		return;
+	}
+
+	if( m_serverVersion < MIN_SERVER_VER_REQ_MKT_DEPTH_EXCHANGES) {
+		m_pEWrapper->error(NO_VALID_ID, UPDATE_TWS.code(), UPDATE_TWS.msg() +
+			"  It does not support market depth exchanges requests.");
+		return;
+	}
+
+
+	std::stringstream msg;
+	prepareBuffer(msg);
+
+	ENCODE_FIELD(REQ_MKT_DEPTH_EXCHANGES);
 
 	closeAndSend(msg.str());
 }

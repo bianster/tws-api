@@ -163,6 +163,9 @@ const int REQ_ACCOUNT_UPDATES_MULTI     = 76;
 const int CANCEL_ACCOUNT_UPDATES_MULTI  = 77;
 const int REQ_SEC_DEF_OPT_PARAMS		= 78;
 const int REQ_SOFT_DOLLAR_TIERS			= 79;
+const int REQ_FAMILY_CODES				= 80;
+const int REQ_MATCHING_SYMBOLS			= 81;
+const int REQ_MKT_DEPTH_EXCHANGES		= 82;
 
 // TWS New Bulletins constants
 const int NEWS_MSG              = 1;    // standard IB news bulleting message
@@ -187,7 +190,7 @@ class TWSAPIDLLEXP EClient
 public:
 
 	explicit EClient(EWrapper *ptr, ETransport *pTransport);
-	~EClient();
+	virtual ~EClient();
 
 	virtual void eDisconnect() = 0;
 
@@ -299,6 +302,9 @@ public:
 	void cancelAccountUpdatesMulti( int reqId);
 	void reqSecDefOptParams(int reqId, const std::string& underlyingSymbol, const std::string& futFopExchange, const std::string& underlyingSecType, int underlyingConId);
 	void reqSoftDollarTiers(int reqId);
+	void reqFamilyCodes();
+	void reqMatchingSymbols(int reqId, const std::string& pattern);
+	void reqMktDepthExchanges();
 
 private:
 
