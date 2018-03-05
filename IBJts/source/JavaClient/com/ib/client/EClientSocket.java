@@ -57,7 +57,7 @@ public class EClientSocket extends EClient implements EClientMsgSink  {
 	    sendConnectRequest();
 	
 	    // start reader thread
-	    EReader reader = new EReader(this, m_signal);;
+	    EReader reader = new EReader(this, m_signal);
 	
 	    if (!m_asyncEConnect) {
 	    	reader.putMessageToQueue();
@@ -109,7 +109,7 @@ public class EClientSocket extends EClient implements EClientMsgSink  {
 	}
 
 	@Override
-	public void redirect(String newAddress) {
+	public synchronized void redirect(String newAddress) {
 	    if( m_useV100Plus ) {
 	    	if (!m_allowRedirect) {
 	    		m_eWrapper.error(EClientErrors.NO_VALID_ID, EClientErrors.CONNECT_FAIL.code(), EClientErrors.CONNECT_FAIL.msg());
@@ -131,13 +131,11 @@ public class EClientSocket extends EClient implements EClientMsgSink  {
 			} catch (IOException e) {
 				m_eWrapper.error(e);
 			}
-	        
-	    	return;
 	    }
 	}
 
 	@Override
-	public void serverVersion(int version, String time) {
+	public synchronized void serverVersion(int version, String time) {
 		m_serverVersion = version;
 		m_TwsTime = time;	
 		
@@ -152,16 +150,14 @@ public class EClientSocket extends EClient implements EClientMsgSink  {
 	        m_eWrapper.error( EClientErrors.NO_VALID_ID, EClientErrors.UPDATE_TWS.code(), EClientErrors.UPDATE_TWS.msg());
 	        return;
 	    }
-	    
-	    if ( m_serverVersion >= 3 ){
-	        if ( m_serverVersion < MIN_SERVER_VER_LINKING) {
-	            try {
-					send( m_clientId);
-				} catch (IOException e) {
-					m_eWrapper.error(e);
-				}
-	        }
-	    }
+
+	    if ( m_serverVersion < MIN_SERVER_VER_LINKING) {
+			try {
+				send( m_clientId);
+			} catch (IOException e) {
+				m_eWrapper.error(e);
+			}
+		}
 	    
 	    
 	    // set connected flag
@@ -171,7 +167,7 @@ public class EClientSocket extends EClient implements EClientMsgSink  {
 	    	startAPI();
 	}
 
-	protected void performRedirect( String address, int defaultPort ) throws IOException {
+	protected synchronized void performRedirect( String address, int defaultPort ) throws IOException {
 	    System.out.println("Server Redirect: " + address);
 	    
 	    // Get host:port from address string and reconnect (note: port is optional)
@@ -195,7 +191,7 @@ public class EClientSocket extends EClient implements EClientMsgSink  {
 
 	private synchronized void eDisconnect( boolean resetState ) {
 	    // not connected?
-	    if( m_dis == null & m_socketTransport == null) {
+	    if( m_dis == null && m_socketTransport == null) {
 	        return;
 	    }
 	
@@ -210,13 +206,19 @@ public class EClientSocket extends EClient implements EClientMsgSink  {
 	
 	    FilterInputStream dis = m_dis;
 	    m_dis = null;
-	    m_socketTransport = null;
+	    if (m_socketTransport != null) {
+			try {
+				m_socketTransport.close();
+			} catch (IOException ignored) {
+			} finally {
+				m_socketTransport = null;
+			}
+		}
 	
 	    try {
 	        if (dis != null)
 	        	dis.close();
-	    }
-	    catch( Exception e) {
+	    } catch (Exception ignored) {
 	    }
 	}
 
@@ -229,7 +231,7 @@ public class EClientSocket extends EClient implements EClientMsgSink  {
 	}
 
 	@Override
-	public boolean isConnected() {
+	public synchronized boolean isConnected() {
 		return m_socket != null && m_socket.isConnected() && m_connected;
 	}
 }

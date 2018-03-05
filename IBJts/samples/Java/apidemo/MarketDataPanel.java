@@ -1,4 +1,4 @@
-/* Copyright (C) 2013 Interactive Brokers LLC. All rights reserved.  This code is subject to the terms
+/* Copyright (C) 2017 Interactive Brokers LLC. All rights reserved.  This code is subject to the terms
  * and conditions of the IB API Non-Commercial License or the IB API Commercial License, as applicable. */
 
 package apidemo;
@@ -8,9 +8,13 @@ import java.awt.Desktop;
 import java.awt.Dimension;
 import java.awt.GridLayout;
 import java.io.File;
-import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import javax.swing.Box;
@@ -21,23 +25,27 @@ import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.SwingUtilities;
 import javax.swing.table.AbstractTableModel;
-import javax.swing.table.TableCellRenderer;
 
-import com.ib.client.Contract;
-import com.ib.client.ContractDetails;
-import com.ib.client.ScannerSubscription;
+import com.ib.client.*;
 import com.ib.client.Types.BarSize;
 import com.ib.client.Types.DeepSide;
 import com.ib.client.Types.DeepType;
 import com.ib.client.Types.DurationUnit;
-import com.ib.client.Types.MktDataType;
+import com.ib.client.Types.TickByTickType;
 import com.ib.client.Types.WhatToShow;
+import com.ib.controller.ApiController.IPnLHandler;
+import com.ib.controller.ApiController.IPnLSingleHandler;
 import com.ib.controller.ApiController.IDeepMktDataHandler;
+import com.ib.controller.ApiController.IHeadTimestampHandler;
+import com.ib.controller.ApiController.IHistogramDataHandler;
 import com.ib.controller.ApiController.IHistoricalDataHandler;
 import com.ib.controller.ApiController.IRealTimeBarHandler;
 import com.ib.controller.ApiController.IScannerHandler;
 import com.ib.controller.ApiController.ISecDefOptParamsReqHandler;
+import com.ib.controller.ApiController.ISmartComponentsHandler;
+import com.ib.controller.ApiController.ISymbolSamplesHandler;
 import com.ib.controller.Bar;
+import com.ib.controller.Formats;
 import com.ib.controller.Instrument;
 import com.ib.controller.ScanCode;
 
@@ -49,77 +57,358 @@ import apidemo.util.UpperField;
 import apidemo.util.VerticalPanel;
 import apidemo.util.VerticalPanel.StackPanel;
 
-public class MarketDataPanel extends JPanel {
+class MarketDataPanel extends JPanel {
 	private final Contract m_contract = new Contract();
-	private final NewTabbedPanel m_requestPanel = new NewTabbedPanel();
 	private final NewTabbedPanel m_resultsPanel = new NewTabbedPanel();
 	private TopResultsPanel m_topResultPanel;
+	private Set<String> m_bboExchanges = new HashSet<>();
+	private RequestSmartComponentsPanel m_smartComponentsPanel = new RequestSmartComponentsPanel();
+	private SmartComponentsResPanel m_smartComponentsResPanel = null;
 	
 	MarketDataPanel() {
-		m_requestPanel.addTab( "Top Market Data", new TopRequestPanel() );
-		m_requestPanel.addTab( "Deep Book", new DeepRequestPanel() );
-		m_requestPanel.addTab( "Historical Data", new HistRequestPanel() );
-		m_requestPanel.addTab( "Real-time Bars", new RealtimeRequestPanel() );
-		m_requestPanel.addTab( "Market Scanner", new ScannerRequestPanel() );
-		m_requestPanel.addTab("Security defininition optional parameters", new SecDefOptParamsPanel());
+		final NewTabbedPanel requestPanel = new NewTabbedPanel();
+		
+		requestPanel.addTab("Top Market Data", new TopRequestPanel(this));
+		requestPanel.addTab("Deep Book", new DeepRequestPanel());
+		requestPanel.addTab("Historical Data", new HistRequestPanel());
+		requestPanel.addTab("Real-time Bars", new RealtimeRequestPanel());
+		requestPanel.addTab("Market Scanner", new ScannerRequestPanel(this));
+		requestPanel.addTab("Security definition optional parameters", new SecDefOptParamsPanel());
+		requestPanel.addTab("Matching Symbols", new RequestMatchingSymbolsPanel());
+		requestPanel.addTab("Market Depth Exchanges", new MktDepthExchangesPanel());
+		requestPanel.addTab("Smart Components", m_smartComponentsPanel);
+		requestPanel.addTab("PnL", new PnLPanel());
+		requestPanel.addTab("Tick-By-Tick", new TickByTickRequestPanel());
 		
 		setLayout( new BorderLayout() );
-		add( m_requestPanel, BorderLayout.NORTH);
+		add( requestPanel, BorderLayout.NORTH);
 		add( m_resultsPanel);
 	}
 	
+	void addBboExch(String exch) {
+		m_bboExchanges.add(exch);
+		m_smartComponentsPanel.updateBboExchSet(m_bboExchanges);
+	}
+	
+	private class RequestSmartComponentsPanel extends JPanel {
+		final TCombo<String> m_BBOExchList = new TCombo<>(m_bboExchanges.toArray(new String[0]));
+		
+		RequestSmartComponentsPanel() {
+            HtmlButton requestSmartComponentsButton = new HtmlButton( "Request Smart Components") {
+                @Override protected void actionPerformed() {
+                	onRequestSmartComponents();
+                }
+            };
+
+            VerticalPanel paramsPanel = new VerticalPanel();
+            paramsPanel.add( "BBO Exchange", m_BBOExchList, Box.createHorizontalStrut(10), requestSmartComponentsButton);
+            setLayout( new BorderLayout() );
+            add( paramsPanel, BorderLayout.NORTH);
+		}
+		
+		void updateBboExchSet(Set<String> m_bboExchanges) {
+			m_BBOExchList.removeAllItems();
+			
+			for (String item : m_bboExchanges) {
+				m_BBOExchList.addItem(item);
+			}
+		}
+
+		void onRequestSmartComponents() {
+			if (m_smartComponentsResPanel == null) {
+				m_smartComponentsResPanel = new SmartComponentsResPanel();
+
+				m_resultsPanel.addTab( "Smart Components ", m_smartComponentsResPanel, true, true);
+			}
+			
+			
+			ApiDemo.INSTANCE.controller().reqSmartComponents(m_BBOExchList.getSelectedItem(), m_smartComponentsResPanel);
+		}
+	}
+	
+	private class SmartComponentsResPanel extends NewTabPanel implements ISmartComponentsHandler {
+		
+        final SmartComponentsModel m_model = new SmartComponentsModel();
+        final List<SmartComponentsRow> m_rows = new ArrayList<>();
+        final JTable m_table = new JTable(m_model);
+
+        SmartComponentsResPanel() {
+			JScrollPane scroll = new JScrollPane( m_table);
+			
+			setLayout(new BorderLayout());
+			add(scroll);
+		}
+
+        /** Called when the tab is first visited. */
+        @Override public void activated() { /* noop */ }
+
+        /** Called when the tab is closed by clicking the X. */
+        @Override public void closed() { m_smartComponentsResPanel = null; }
+
+		@Override
+		public void smartComponents(int reqId, Map<Integer, Entry<String, Character>> theMap) {
+            for (Map.Entry<Integer, Entry<String, Character>> entry : theMap.entrySet()) {
+                SmartComponentsRow symbolSamplesRow = new SmartComponentsRow(
+                		reqId,
+                		entry.getKey(),
+                		entry.getValue().getKey(),
+                		entry.getValue().getValue()
+                        );
+                
+                m_rows.add( symbolSamplesRow);
+            }
+            
+            SwingUtilities.invokeLater(() -> {
+                m_model.fireTableRowsInserted( m_rows.size() - 1, m_rows.size() - 1);
+                revalidate();
+                repaint();
+            });
+        }
+
+        class SmartComponentsModel extends AbstractTableModel {
+            @Override public int getRowCount() {
+                return m_rows.size();
+            }
+
+            @Override public int getColumnCount() {
+                return 4;
+            }
+
+            @Override public String getColumnName(int col) {
+                switch( col) {
+                    case 0: return "Req Id";
+                    case 1: return "Bit Number";
+                    case 2: return "Exchange";
+                    case 3: return "Exchange single-letter abbreviation";
+                    default: return null;
+                }
+            }
+
+            @Override public Object getValueAt(int rowIn, int col) {
+            	SmartComponentsRow symbolSamplesRow = m_rows.get( rowIn);
+                switch( col) {
+                    case 0: return symbolSamplesRow.m_reqId;
+                    case 1: return symbolSamplesRow.m_bitNum;
+                    case 2: return symbolSamplesRow.m_exch;
+                    case 3: return symbolSamplesRow.m_exchLetter;
+                    default: return null;
+                }
+            }
+        }
+
+        private class SmartComponentsRow {
+            int m_reqId;
+            int m_bitNum;
+            String m_exch;
+            char m_exchLetter;
+
+            SmartComponentsRow(int reqId, int bitNum, String exch, char exchLetter) {
+                m_reqId = reqId;
+                m_bitNum = bitNum;
+                m_exch = exch;
+                m_exchLetter = exchLetter;
+            }
+        }
+		
+	}
+
+    private class RequestMatchingSymbolsPanel extends JPanel {
+        final UpperField m_pattern = new UpperField();
+
+        RequestMatchingSymbolsPanel() {
+            m_pattern.setText( "IBM");
+            HtmlButton requestMatchingSymbolsButton = new HtmlButton( "Request Matching Symbols") {
+                @Override protected void actionPerformed() {
+                    onRequestMatchingSymbols();
+                }
+            };
+
+            VerticalPanel paramsPanel = new VerticalPanel();
+            paramsPanel.add( "Pattern", m_pattern, Box.createHorizontalStrut(10), requestMatchingSymbolsButton);
+            setLayout( new BorderLayout() );
+            add( paramsPanel, BorderLayout.NORTH);
+        }
+
+        void onRequestMatchingSymbols() {
+            SymbolSamplesPanel symbolSamplesPanel = new SymbolSamplesPanel();
+            m_resultsPanel.addTab( "Symbol Samples " + m_pattern.getText(), symbolSamplesPanel, true, true);
+            ApiDemo.INSTANCE.controller().reqMatchingSymbols(m_pattern.getText(), symbolSamplesPanel);
+        }
+    }
+
+    static class SymbolSamplesPanel extends NewTabPanel implements ISymbolSamplesHandler {
+        final SymbolSamplesModel m_model = new SymbolSamplesModel();
+        final List<SymbolSamplesRow> m_rows = new ArrayList<>();
+
+        SymbolSamplesPanel() {
+            JTable table = new JTable( m_model);
+            JScrollPane scroll = new JScrollPane( table);
+            setLayout( new BorderLayout() );
+            add( scroll);
+        }
+
+        /** Called when the tab is first visited. */
+        @Override public void activated() { /* noop */ }
+
+        /** Called when the tab is closed by clicking the X. */
+        @Override public void closed() { /* noop */ }
+
+        @Override
+        public void symbolSamples(ContractDescription[] contractDescriptions) {
+			for (ContractDescription contractDescription : contractDescriptions) {
+				StringBuilder sb = new StringBuilder();
+				for (String string : contractDescription.derivativeSecTypes()) {
+					sb.append(string).append(' ');
+				}
+				final Contract contract = contractDescription.contract();
+				SymbolSamplesRow symbolSamplesRow = new SymbolSamplesRow(
+						contract.conid(),
+						contract.symbol(),
+						contract.secType().getApiString(),
+						contract.primaryExch(),
+						contract.currency(),
+						sb.toString()
+				);
+				m_rows.add(symbolSamplesRow);
+			}
+            fire();
+        }
+
+        private void fire() {
+            SwingUtilities.invokeLater(() -> {
+                m_model.fireTableRowsInserted( m_rows.size() - 1, m_rows.size() - 1);
+                revalidate();
+                repaint();
+            });
+        }
+
+        class SymbolSamplesModel extends AbstractTableModel {
+            @Override public int getRowCount() {
+                return m_rows.size();
+            }
+
+            @Override public int getColumnCount() {
+                return 6;
+            }
+
+            @Override public String getColumnName(int col) {
+                switch( col) {
+                    case 0: return "ConId";
+                    case 1: return "Symbol";
+                    case 2: return "SecType";
+                    case 3: return "PrimaryExch";
+                    case 4: return "Currency";
+                    case 5: return "Derivative SecTypes";
+                    default: return null;
+                }
+            }
+
+            @Override public Object getValueAt(int rowIn, int col) {
+                SymbolSamplesRow symbolSamplesRow = m_rows.get( rowIn);
+                switch( col) {
+                    case 0: return symbolSamplesRow.m_conId;
+                    case 1: return symbolSamplesRow.m_symbol;
+                    case 2: return symbolSamplesRow.m_secType;
+                    case 3: return symbolSamplesRow.m_primaryExch;
+                    case 4: return symbolSamplesRow.m_currency;
+                    case 5: return symbolSamplesRow.m_derivativeSecTypes;
+                    default: return null;
+                }
+            }
+        }
+
+        static class SymbolSamplesRow {
+            int m_conId;
+            String m_symbol;
+            String m_secType;
+            String m_primaryExch;
+            String m_currency;
+            String m_derivativeSecTypes;
+
+            SymbolSamplesRow(int conId, String symbol, String secType, String primaryExch, String currency, String derivativeSecTypes) {
+                update( conId, symbol, secType, primaryExch, currency, derivativeSecTypes);
+            }
+
+            void update( int conId, String symbol, String secType, String primaryExch, String currency, String derivativeSecTypes) {
+                m_conId = conId;
+                m_symbol = symbol;
+                m_secType = secType;
+                m_primaryExch = primaryExch;
+                m_currency = currency;
+                m_derivativeSecTypes = derivativeSecTypes;
+            }
+        }
+    }
+	
 	private class TopRequestPanel extends JPanel {
 		final ContractPanel m_contractPanel = new ContractPanel(m_contract);
+		TCombo<String> m_marketDataType = new TCombo<>( MarketDataType.getFields() );
+		MarketDataPanel m_parentPanel;
 		
-		TopRequestPanel() {
+		TopRequestPanel(MarketDataPanel parentPanel) {
+			m_marketDataType.setSelectedItem( MarketDataType.REALTIME);
+			m_parentPanel = parentPanel;
+			
 			HtmlButton reqTop = new HtmlButton( "Request Top Market Data") {
 				@Override protected void actionPerformed() {
 					onTop();
 				}
 			};
-			
+
+			HtmlButton cancelTop = new HtmlButton( "Cancel Top Market Data") {
+				@Override protected void actionPerformed() {
+					onCancelTop();
+				}
+			};
+
+			m_marketDataType.addActionListener(event -> ApiDemo.INSTANCE.controller().reqMktDataType( MarketDataType.getField(m_marketDataType.getSelectedItem())));
+
+			VerticalPanel paramPanel = new VerticalPanel();
+			paramPanel.add( "Market data type", m_marketDataType);
+
 			VerticalPanel butPanel = new VerticalPanel();
+			butPanel.add( Box.createVerticalStrut( 40));
 			butPanel.add( reqTop);
-			
+			butPanel.add( cancelTop);
+
+			JPanel rightPanel = new StackPanel();
+			rightPanel.add( paramPanel);
+			rightPanel.add( Box.createVerticalStrut( 20));
+			rightPanel.add( butPanel);
+
 			setLayout( new BoxLayout( this, BoxLayout.X_AXIS) );
 			add( m_contractPanel);
 			add( Box.createHorizontalStrut(20));
-			add( butPanel);
+			add( rightPanel);
 		}
 
-		protected void onTop() {
+		void onTop() {
 			m_contractPanel.onOK();
 			if (m_topResultPanel == null) {
-				m_topResultPanel = new TopResultsPanel();
+				m_topResultPanel = new TopResultsPanel(m_parentPanel);
 				m_resultsPanel.addTab( "Top Data", m_topResultPanel, true, true);
 			}
 			
 			m_topResultPanel.m_model.addRow( m_contract);
 		}
+
+		void onCancelTop() {
+			m_topResultPanel.m_model.removeSelectedRows();
+		}
 	}
 	
 	private class TopResultsPanel extends NewTabPanel {
-		final TopModel m_model = new TopModel();
-		final JTable m_tab = new TopTable( m_model);
-		final TCombo<MktDataType> m_typeCombo = new TCombo<MktDataType>( MktDataType.values() );
+		final TopModel m_model;
+		final JTable m_tab;
 
-		TopResultsPanel() {
-			m_typeCombo.removeItemAt( 0);
+		TopResultsPanel(MarketDataPanel parentPanel) {
+			m_model = new TopModel(parentPanel);
+			m_tab = new TopTable( m_model);
 
 			JScrollPane scroll = new JScrollPane( m_tab);
-
-			HtmlButton reqType = new HtmlButton( "Go") {
-				@Override protected void actionPerformed() {
-					onReqType();
-				}
-			};
-
-			VerticalPanel butPanel = new VerticalPanel();
-			butPanel.add( "Market data type", m_typeCombo, reqType);
 			
 			setLayout( new BorderLayout() );
 			add( scroll);
-			add( butPanel, BorderLayout.SOUTH);
 		}
 		
 		/** Called when the tab is first visited. */
@@ -132,18 +421,8 @@ public class MarketDataPanel extends JPanel {
 			m_topResultPanel = null;
 		}
 
-		void onReqType() {
-			ApiDemo.INSTANCE.controller().reqMktDataType( m_typeCombo.getSelectedItem() );
-		}
-		
 		class TopTable extends JTable {
-			public TopTable(TopModel model) { super( model); }
-
-			@Override public TableCellRenderer getCellRenderer(int rowIn, int column) {
-				TableCellRenderer rend = super.getCellRenderer(rowIn, column);
-				m_model.color( rend, rowIn, getForeground() );
-				return rend;
-			}
+			TopTable(TopModel model) { super( model); }
 		}
 	}		
 	
@@ -166,7 +445,7 @@ public class MarketDataPanel extends JPanel {
 			add( butPanel);
 		}
 
-		protected void onDeep() {
+		void onDeep() {
 			m_contractPanel.onOK();
 			DeepResultsPanel resultPanel = new DeepResultsPanel();
 			m_resultsPanel.addTab( "Deep " + m_contract.symbol(), resultPanel, true, true);
@@ -200,7 +479,7 @@ public class MarketDataPanel extends JPanel {
 			add( desub, BorderLayout.SOUTH);
 		}
 		
-		protected void onDesub() {
+		void onDesub() {
 			ApiDemo.INSTANCE.controller().cancelDeepMktData( this);
 		}
 
@@ -221,8 +500,8 @@ public class MarketDataPanel extends JPanel {
 			}
 		}
 
-		class DeepModel extends AbstractTableModel {
-			final ArrayList<DeepRow> m_rows = new ArrayList<DeepRow>();
+		static class DeepModel extends AbstractTableModel {
+			final List<DeepRow> m_rows = new ArrayList<>();
 
 			@Override public int getRowCount() {
 				return m_rows.size();
@@ -281,7 +560,7 @@ public class MarketDataPanel extends JPanel {
 			double m_price;
 			int m_size;
 
-			public DeepRow(String mm, double price, int size) {
+			DeepRow(String mm, double price, int size) {
 				update( mm, price, size);
 			}
 			
@@ -295,58 +574,105 @@ public class MarketDataPanel extends JPanel {
 
 	private class HistRequestPanel extends JPanel {
 		final ContractPanel m_contractPanel = new ContractPanel(m_contract);
-		final UpperField m_end = new UpperField();
+        final UpperField m_begin = new UpperField();
+        final UpperField m_end = new UpperField();
+        final UpperField m_nTicks = new UpperField();
 		final UpperField m_duration = new UpperField();
-		final TCombo<DurationUnit> m_durationUnit = new TCombo<DurationUnit>( DurationUnit.values() );
-		final TCombo<BarSize> m_barSize = new TCombo<BarSize>( BarSize.values() );
-		final TCombo<WhatToShow> m_whatToShow = new TCombo<WhatToShow>( WhatToShow.values() );
+		final TCombo<DurationUnit> m_durationUnit = new TCombo<>( DurationUnit.values() );
+		final TCombo<BarSize> m_barSize = new TCombo<>( BarSize.values() );
+		final TCombo<WhatToShow> m_whatToShow = new TCombo<>( WhatToShow.values() );
 		final JCheckBox m_rthOnly = new JCheckBox();
+		final JCheckBox m_keepUpToDate = new JCheckBox();
+		final JCheckBox m_ignoreSize = new JCheckBox();
 		
 		HistRequestPanel() { 		
-			m_end.setText( "20120101 12:00:00");
-			m_duration.setText( "1");
-			m_durationUnit.setSelectedItem( DurationUnit.WEEK);
-			m_barSize.setSelectedItem( BarSize._1_hour);
+			m_end.setText("20120101 12:00:00");
+			m_duration.setText("1");
+			m_durationUnit.setSelectedItem(DurationUnit.WEEK);
+			m_barSize.setSelectedItem(BarSize._1_hour);
 			
-			HtmlButton button = new HtmlButton( "Request historical data") {
+			HtmlButton bReqHistoricalData = new HtmlButton("Request historical data") {
 				@Override protected void actionPerformed() {
 					onHistorical();
 				}
 			};
 			
+			HtmlButton bReqHistogramData = new HtmlButton("Request histogram data") {
+				@Override protected void actionPerformed() {
+					onHistogram();
+				}
+			};
+			
+			HtmlButton bReqHistoricalTick = new HtmlButton("Request historical tick") {
+			    @Override protected void actionPerformed() {
+                    onHistoricalTick();
+                }
+			};
+			
 	    	VerticalPanel paramPanel = new VerticalPanel();
-			paramPanel.add( "End", m_end);
-			paramPanel.add( "Duration", m_duration);
-			paramPanel.add( "Duration unit", m_durationUnit);
-			paramPanel.add( "Bar size", m_barSize);
-			paramPanel.add( "What to show", m_whatToShow);
-			paramPanel.add( "RTH only", m_rthOnly);
+	    	paramPanel.add("Begin", m_begin);
+			paramPanel.add("End", m_end);
+			paramPanel.add("Number of ticks", m_nTicks);
+			paramPanel.add("Duration", m_duration);
+			paramPanel.add("Duration unit", m_durationUnit);
+			paramPanel.add("Bar size", m_barSize);
+			paramPanel.add("What to show", m_whatToShow);
+			paramPanel.add("RTH only", m_rthOnly);
+			paramPanel.add("Keep up to date", m_keepUpToDate);
+			paramPanel.add("Ignore size", m_ignoreSize);
 			
 			VerticalPanel butPanel = new VerticalPanel();
-			butPanel.add( button);
+			butPanel.add(bReqHistoricalData);
+			butPanel.add(bReqHistogramData);
+			butPanel.add(bReqHistoricalTick);
 			
 			JPanel rightPanel = new StackPanel();
-			rightPanel.add( paramPanel);
-			rightPanel.add( Box.createVerticalStrut( 20));
-			rightPanel.add( butPanel);
+			rightPanel.add(paramPanel);
+			rightPanel.add(Box.createVerticalStrut(20));
+			rightPanel.add(butPanel);
 			
-			setLayout( new BoxLayout( this, BoxLayout.X_AXIS) );
-			add( m_contractPanel);
-			add( Box.createHorizontalStrut(20) );
-			add( rightPanel);
+			setLayout(new BoxLayout(this, BoxLayout.X_AXIS) );
+			add(m_contractPanel);
+			add(Box.createHorizontalStrut(20) );
+			add(rightPanel);
 		}
 	
-		protected void onHistorical() {
+		protected void onHistoricalTick() {
+		    m_contractPanel.onOK();
+		    
+		    HistoricalTickResultsPanel panel = new HistoricalTickResultsPanel();
+		    
+		    ApiDemo.INSTANCE.controller().reqHistoricalTicks(m_contract, m_begin.getText(), m_end.getText(), 
+		            m_nTicks.getInt(), m_whatToShow.getSelectedItem().name(), m_rthOnly.isSelected() ? 1 : 0, 
+		                    m_ignoreSize.isSelected(), panel);
+		    m_resultsPanel.addTab("Historical tick " + m_contract.symbol(), panel, true, true);
+        }
+
+        void onHistogram() {
 			m_contractPanel.onOK();
+			
+			HistogramResultsPanel panel = new HistogramResultsPanel();
+			
+			ApiDemo.INSTANCE.controller().reqHistogramData(m_contract, m_duration.getInt(), 
+			        m_durationUnit.getSelectedItem(), m_rthOnly.isSelected(), panel);
+			m_resultsPanel.addTab("Histogram " + m_contract.symbol(), panel, true, true);
+		}
+
+		void onHistorical() {
+			m_contractPanel.onOK();
+			
 			BarResultsPanel panel = new BarResultsPanel( true);
-			ApiDemo.INSTANCE.controller().reqHistoricalData(m_contract, m_end.getText(), m_duration.getInt(), m_durationUnit.getSelectedItem(), m_barSize.getSelectedItem(), m_whatToShow.getSelectedItem(), m_rthOnly.isSelected(), panel);
+			
+			ApiDemo.INSTANCE.controller().reqHistoricalData(m_contract, m_end.getText(), m_duration.getInt(), 
+			        m_durationUnit.getSelectedItem(), m_barSize.getSelectedItem(), m_whatToShow.getSelectedItem(), 
+			        m_rthOnly.isSelected(), m_keepUpToDate.isSelected(), panel);
 			m_resultsPanel.addTab( "Historical " + m_contract.symbol(), panel, true, true);
 		}
 	}
 
 	private class RealtimeRequestPanel extends JPanel {
 		final ContractPanel m_contractPanel = new ContractPanel(m_contract);
-		final TCombo<WhatToShow> m_whatToShow = new TCombo<WhatToShow>( WhatToShow.values() );
+		final TCombo<WhatToShow> m_whatToShow = new TCombo<>( WhatToShow.values() );
 		final JCheckBox m_rthOnly = new JCheckBox();
 		
 		RealtimeRequestPanel() { 		
@@ -355,6 +681,12 @@ public class MarketDataPanel extends JPanel {
 					onRealTime();
 				}
 			};
+			
+			HtmlButton htsButton = new HtmlButton("Request head timestamp") {
+				@Override protected void actionPerformed() {
+					onHts();
+				}
+			};
 	
 	    	VerticalPanel paramPanel = new VerticalPanel();
 			paramPanel.add( "What to show", m_whatToShow);
@@ -362,6 +694,7 @@ public class MarketDataPanel extends JPanel {
 			
 			VerticalPanel butPanel = new VerticalPanel();
 			butPanel.add( button);
+			butPanel.add(htsButton);
 			
 			JPanel rightPanel = new StackPanel();
 			rightPanel.add( paramPanel);
@@ -374,7 +707,16 @@ public class MarketDataPanel extends JPanel {
 			add( rightPanel);
 		}
 	
-		protected void onRealTime() {
+		void onHts() {
+			m_contractPanel.onOK();
+			
+			HtsResultsPanel panel = new HtsResultsPanel();
+			
+			ApiDemo.INSTANCE.controller().reqHeadTimestamp(m_contract, m_whatToShow.getSelectedItem(), m_rthOnly.isSelected(), panel);
+			m_resultsPanel.addTab( "Head time stamp " + m_contract.symbol(), panel, true, true);
+		}
+
+		void onRealTime() {
 			m_contractPanel.onOK();
 			BarResultsPanel panel = new BarResultsPanel( false);
 			ApiDemo.INSTANCE.controller().reqRealTimeBars(m_contract, m_whatToShow.getSelectedItem(), m_rthOnly.isSelected(), panel);
@@ -382,9 +724,154 @@ public class MarketDataPanel extends JPanel {
 		}
 	}
 	
+	static class HtsResultsPanel extends NewTabPanel implements IHeadTimestampHandler {
+		final BarModel m_model = new BarModel();
+		final List<Long> m_rows = new ArrayList<>();
+		//final Chart m_chart = new Chart( m_rows);
+		
+		HtsResultsPanel() {
+			
+			JTable tab = new JTable( m_model);
+			JScrollPane scroll = new JScrollPane( tab) {
+				public Dimension getPreferredSize() {
+					Dimension d = super.getPreferredSize();
+					d.width = 500;
+					return d;
+				}
+			};
+
+			//JScrollPane chartScroll = new JScrollPane( m_chart);
+
+			setLayout( new BorderLayout() );
+			add( scroll, BorderLayout.WEST);
+			//add( chartScroll, BorderLayout.CENTER);
+		}
+
+		/** Called when the tab is first visited. */
+		@Override public void activated() {
+		}
+
+		/** Called when the tab is closed by clicking the X. */
+		@Override public void closed() {
+
+		}
+
+		@Override public void headTimestamp(int reqId, long headTimestamp) {
+			m_rows.add(headTimestamp);			
+			fire();
+		}
+		
+		private void fire() {
+			SwingUtilities.invokeLater(() -> {
+                m_model.fireTableRowsInserted( m_rows.size() - 1, m_rows.size() - 1);
+                //m_chart.repaint();
+            });
+		}
+
+		class BarModel extends AbstractTableModel {
+			@Override public int getRowCount() {
+				return m_rows.size();
+			}
+
+			@Override public int getColumnCount() {
+				return 7;
+			}
+			
+			@Override public String getColumnName(int col) {
+				switch( col) {
+					case 0: return "Date/time";
+					default: return null;
+				}
+			}
+
+			@Override public Object getValueAt(int rowIn, int col) {
+				long row = m_rows.get( rowIn);
+				
+				switch( col) {
+					case 0: return Formats.fmtDateGmt(row * 1000);
+					default: return null;
+				}
+			}
+		}
+
+	}
+
+	static class HistogramResultsPanel extends NewTabPanel implements IHistogramDataHandler {
+		final HistogramModel m_model = new HistogramModel();
+		final List<HistogramEntry> m_rows = new ArrayList<>();
+		final Histogram m_hist = new Histogram(m_rows);
+		
+		HistogramResultsPanel() {			
+			JTable tab = new JTable( m_model);
+			JScrollPane scroll = new JScrollPane( tab) {
+				public Dimension getPreferredSize() {
+					Dimension d = super.getPreferredSize();
+					d.width = 500;
+					return d;
+				}
+			};
+
+			JScrollPane chartScroll = new JScrollPane(m_hist);
+
+			setLayout(new BorderLayout());
+			add(scroll, BorderLayout.WEST);
+			add(chartScroll, BorderLayout.CENTER);
+		}
+
+		/** Called when the tab is first visited. */
+		@Override public void activated() {
+		}
+
+		/** Called when the tab is closed by clicking the X. */
+		@Override public void closed() {
+			ApiDemo.INSTANCE.controller().cancelHistogramData(this);
+		}
+
+		private void fire() {
+			SwingUtilities.invokeLater(() -> {
+                m_model.fireTableRowsInserted( m_rows.size() - 1, m_rows.size() - 1);
+                m_hist.repaint();
+            });			
+		}
+
+		class HistogramModel extends AbstractTableModel {
+			@Override public int getRowCount() {
+				return m_rows.size();
+			}
+
+			@Override public int getColumnCount() {
+				return 2;
+			}
+			
+			@Override public String getColumnName(int col) {
+				switch(col) {
+					case 0: return "Price";
+					case 1: return "Size";
+					default: return null;
+				}
+			}
+
+			@Override public Object getValueAt(int rowIn, int col) {
+				HistogramEntry row = m_rows.get(rowIn);
+				
+				switch(col) {
+					case 0: return row.price;
+					case 1: return row.size;
+					default: return null;
+				}
+			}
+		}
+
+		@Override
+		public void histogramData(int reqId, List<HistogramEntry> items) {
+			m_rows.addAll(items);
+			fire();
+		}		
+	}
+	
 	static class BarResultsPanel extends NewTabPanel implements IHistoricalDataHandler, IRealTimeBarHandler {
 		final BarModel m_model = new BarModel();
-		final ArrayList<Bar> m_rows = new ArrayList<Bar>();
+		final List<Bar> m_rows = new ArrayList<>();
 		final boolean m_historical;
 		final Chart m_chart = new Chart( m_rows);
 		
@@ -421,7 +908,7 @@ public class MarketDataPanel extends JPanel {
 			}
 		}
 
-		@Override public void historicalData(Bar bar, boolean hasGaps) {
+		@Override public void historicalData(Bar bar) {
 			m_rows.add( bar);
 		}
 		
@@ -435,12 +922,10 @@ public class MarketDataPanel extends JPanel {
 		}
 		
 		private void fire() {
-			SwingUtilities.invokeLater( new Runnable() {
-				@Override public void run() {
-					m_model.fireTableRowsInserted( m_rows.size() - 1, m_rows.size() - 1);
-					m_chart.repaint();
-				}
-			});
+			SwingUtilities.invokeLater(() -> {
+                m_model.fireTableRowsInserted( m_rows.size() - 1, m_rows.size() - 1);
+                m_chart.repaint();
+            });
 		}
 
 		class BarModel extends AbstractTableModel {
@@ -483,12 +968,15 @@ public class MarketDataPanel extends JPanel {
 	
 	private class ScannerRequestPanel extends JPanel {
 		final UpperField m_numRows = new UpperField( "15");
-		final TCombo<ScanCode> m_scanCode = new TCombo<ScanCode>( ScanCode.values() );
-		final TCombo<Instrument> m_instrument = new TCombo<Instrument>( Instrument.values() );
+		final TCombo<ScanCode> m_scanCode = new TCombo<>( ScanCode.values() );
+		final TCombo<Instrument> m_instrument = new TCombo<>( Instrument.values() );
 		final UpperField m_location = new UpperField( "STK.US.MAJOR", 9);
-		final TCombo<String> m_stockType = new TCombo<String>( "ALL", "STOCK", "ETF");
+		final TCombo<String> m_stockType = new TCombo<>( "ALL", "STOCK", "ETF");
+		private MarketDataPanel m_parentPanel;
 		
-		ScannerRequestPanel() {
+		ScannerRequestPanel(MarketDataPanel parentPanel) {
+			m_parentPanel = parentPanel;
+			
 			HtmlButton go = new HtmlButton( "Go") {
 				@Override protected void actionPerformed() {
 					onGo();
@@ -506,15 +994,15 @@ public class MarketDataPanel extends JPanel {
 			add( paramsPanel, BorderLayout.NORTH);
 		}
 
-		protected void onGo() {
+		void onGo() {
 			ScannerSubscription sub = new ScannerSubscription();
 			sub.numberOfRows( m_numRows.getInt() );
 			sub.scanCode( m_scanCode.getSelectedItem().toString() );
 			sub.instrument( m_instrument.getSelectedItem().toString() );
 			sub.locationCode( m_location.getText() );
-			sub.stockTypeFilter( m_stockType.getSelectedItem().toString() );
+			sub.stockTypeFilter( m_stockType.getSelectedItem() );
 			
-			ScannerResultsPanel resultsPanel = new ScannerResultsPanel();
+			ScannerResultsPanel resultsPanel = new ScannerResultsPanel(m_parentPanel);
 			m_resultsPanel.addTab( sub.scanCode(), resultsPanel, true, true);
 
 			ApiDemo.INSTANCE.controller().reqScannerSubscription( sub, resultsPanel);
@@ -522,10 +1010,11 @@ public class MarketDataPanel extends JPanel {
 	}
 
 	static class ScannerResultsPanel extends NewTabPanel implements IScannerHandler {
-		final HashSet<Integer> m_conids = new HashSet<Integer>();
-		final TopModel m_model = new TopModel();
+		final HashSet<Integer> m_conids = new HashSet<>();
+		final TopModel m_model;
 
-		ScannerResultsPanel() {
+		ScannerResultsPanel(MarketDataPanel parentPanel) {
+			m_model = new TopModel(parentPanel);
 			JTable table = new JTable( m_model);
 			JScrollPane scroll = new JScrollPane( table);
 			setLayout( new BorderLayout() );
@@ -545,13 +1034,11 @@ public class MarketDataPanel extends JPanel {
 		@Override public void scannerParameters(String xml) {
 			try {
 				File file = File.createTempFile( "pre", ".xml");
-				FileWriter writer = new FileWriter( file);
-				writer.write( xml);
-				writer.close();
-
+				try (PrintStream ps = new PrintStream( file, "UTF-8")) {
+					ps.println(xml);
+				}
 				Desktop.getDesktop().open( file);
-			}
-			catch (Exception e) {
+			} catch (IOException e) {
 				e.printStackTrace();
 			}
 		}
@@ -559,11 +1046,7 @@ public class MarketDataPanel extends JPanel {
 		@Override public void scannerData(int rank, final ContractDetails contractDetails, String legsStr) {
 			if (!m_conids.contains( contractDetails.conid() ) ) {
 				m_conids.add( contractDetails.conid() );
-				SwingUtilities.invokeLater( new Runnable() {
-					@Override public void run() {
-						m_model.addRow( contractDetails.contract() );
-					}
-				});
+				SwingUtilities.invokeLater(() -> m_model.addRow( contractDetails.contract() ));
 			}
 		}
 
@@ -572,11 +1055,105 @@ public class MarketDataPanel extends JPanel {
 		}
 	}
 	
+	class PnLPanel extends JPanel {
+
+	    final UpperField m_account = new UpperField();
+	    final UpperField m_modelCode = new UpperField();
+	    final UpperField m_conId = new UpperField();
+
+	    PnLPanel() {
+	        VerticalPanel paramsPanel = new VerticalPanel();
+            HtmlButton reqPnL = 
+                    new HtmlButton("Request PnL") { @Override protected void actionPerformed() { onReqPnL(); } };
+            HtmlButton reqPnLSingle = 
+                    new HtmlButton("Request PnL Single") { @Override protected void actionPerformed() { onReqPnLSingle(); } };
+            
+            paramsPanel.add("Account", m_account);           
+            paramsPanel.add("Model Code", m_modelCode);          
+            paramsPanel.add("Con Id", m_conId);           
+            paramsPanel.add(reqPnL);
+            paramsPanel.add(reqPnLSingle);
+            setLayout(new BorderLayout());
+            add(paramsPanel, BorderLayout.NORTH);
+	    }
+
+        protected void onReqPnLSingle() {
+            final PnLSingleModel pnlSingleModel = new PnLSingleModel();
+            PnLResultsPanel resultsPanel = new PnLResultsPanel(pnlSingleModel);
+            String account = m_account.getText();
+            String modelCode = m_modelCode.getText();
+            int conId = m_conId.getInt();
+            
+            m_resultsPanel.addTab(account + " " + modelCode + " " + conId, resultsPanel, true, true);
+            
+            IPnLSingleHandler handler = (reqId, pos, dailyPnL, unrealizedPnL, realizedPnL, value) -> 
+                SwingUtilities.invokeLater(() -> pnlSingleModel.addRow(pos, dailyPnL, unrealizedPnL, realizedPnL, value));
+            
+            resultsPanel.handler(handler);
+            ApiDemo.INSTANCE.controller().reqPnLSingle(account, modelCode, conId, handler);
+            
+        }
+
+        void onReqPnL() { 
+            final PnLModel pnlModel = new PnLModel();
+            PnLResultsPanel resultsPanel = new PnLResultsPanel(pnlModel);
+            String account = m_account.getText();
+            String modelCode = m_modelCode.getText();
+            
+            m_resultsPanel.addTab(account + " " + modelCode, resultsPanel, true, true);
+            
+            IPnLHandler handler = (reqId, dailyPnL, unrealizedPnL, realizedPnL) -> 
+                SwingUtilities.invokeLater(() -> pnlModel.addRow(dailyPnL, unrealizedPnL, realizedPnL));
+            
+            resultsPanel.handler(handler);
+            ApiDemo.INSTANCE.controller().reqPnL(account, modelCode, handler);
+        }
+        
+	}
+	
+    
+    static class PnLResultsPanel extends NewTabPanel {
+        
+        public PnLResultsPanel(AbstractTableModel pnlModel) {
+            JTable table = new JTable(pnlModel);
+            JScrollPane scroll = new JScrollPane(table);
+            
+            setLayout(new BorderLayout());
+            add(scroll);
+        }
+        
+        private IPnLHandler m_handler;
+        private IPnLSingleHandler m_singleHandler;
+        
+        public void handler(IPnLHandler v) {
+            m_handler = v;            
+        }
+        
+        public void handler(IPnLSingleHandler v) {
+            m_singleHandler = v;
+        }
+
+        @Override
+        public void activated() {
+            // TODO Auto-generated method stub
+            
+        }
+
+        @Override
+        public void closed() {
+            if (m_handler != null) {
+                ApiDemo.INSTANCE.controller().cancelPnL(m_handler);
+            } else if (m_singleHandler != null) {
+                ApiDemo.INSTANCE.controller().cancelPnLSingle(m_singleHandler);
+            }
+        }
+        
+    }
+	
 	class SecDefOptParamsPanel extends JPanel {
 		
 		final UpperField m_underlyingSymbol = new UpperField();
 		final UpperField m_futFopExchange = new UpperField();
-//		final UpperField m_currency = new UpperField();
 		final UpperField m_underlyingSecType = new UpperField();
 		final UpperField m_underlyingConId = new UpperField();
 		
@@ -587,7 +1164,6 @@ public class MarketDataPanel extends JPanel {
 			m_underlyingConId.setText(Integer.MAX_VALUE);			
 			paramsPanel.add("Underlying symbol", m_underlyingSymbol);			
 			paramsPanel.add("FUT-FOP exchange", m_futFopExchange);			
-//			paramsPanel.add("Currency", m_currency);			
 			paramsPanel.add("Underlying security type", m_underlyingSecType);			
 			paramsPanel.add("Underlying contract id", m_underlyingConId);			
 			paramsPanel.add(go);
@@ -595,17 +1171,15 @@ public class MarketDataPanel extends JPanel {
 			add(paramsPanel, BorderLayout.NORTH);
 		}
 
-		protected void onGo() {
+		void onGo() {
 			String underlyingSymbol = m_underlyingSymbol.getText();
 			String futFopExchange = m_futFopExchange.getText();
-//			String currency = m_currency.getText();
 			String underlyingSecType = m_underlyingSecType.getText();
 			int underlyingConId = m_underlyingConId.getInt();
 			
 			ApiDemo.INSTANCE.controller().reqSecDefOptParams( 
 					underlyingSymbol,
 					futFopExchange,
-//					currency,
 					underlyingSecType,
 					underlyingConId,
 					new ISecDefOptParamsReqHandler() {
@@ -616,16 +1190,16 @@ public class MarketDataPanel extends JPanel {
 						@Override
 						public void securityDefinitionOptionalParameter(final String exchange, final int underlyingConId, final String tradingClass, final String multiplier,
 								final Set<String> expirations, final Set<Double> strikes) {
-							SwingUtilities.invokeLater( new Runnable() { @Override public void run() {
+							SwingUtilities.invokeLater(() -> {
 
 								SecDefOptParamsReqResultsPanel resultsPanel = new SecDefOptParamsReqResultsPanel(expirations, strikes);
 
-								m_resultsPanel.addTab(exchange + " " + 
-										underlyingConId + " " + 
-										tradingClass + " " + 
-										multiplier, 
+								m_resultsPanel.addTab(exchange + " " +
+										underlyingConId + " " +
+										tradingClass + " " +
+										multiplier,
 										resultsPanel, true, true);
-							}});
+							});
 						}
 					});
 		}
@@ -636,7 +1210,7 @@ public class MarketDataPanel extends JPanel {
 
 		final OptParamsModel m_model;
 		
-		public SecDefOptParamsReqResultsPanel(Set<String> expirations, Set<Double> strikes) {
+		SecDefOptParamsReqResultsPanel(Set<String> expirations, Set<Double> strikes) {
 			JTable table = new JTable(m_model = new OptParamsModel(expirations, strikes));
 			JScrollPane scroll = new JScrollPane(table);
 			
@@ -653,4 +1227,44 @@ public class MarketDataPanel extends JPanel {
 		}
 
 	}
+
+    private class TickByTickRequestPanel extends JPanel {
+        final ContractPanel m_contractPanel = new ContractPanel(m_contract);
+        final TCombo<TickByTickType> m_tickType = new TCombo<>( TickByTickType.values() );
+
+        TickByTickRequestPanel() { 		
+            m_tickType.setSelectedItem(TickByTickType.Last);
+
+            HtmlButton bReqTickByTickData = new HtmlButton("Request Tick-By-Tick Data") {
+                @Override protected void actionPerformed() {
+                    onReqTickByTickData();
+                }
+            };
+
+            VerticalPanel paramPanel = new VerticalPanel();
+            paramPanel.add("Tick-By-Tick Type", m_tickType);
+
+            VerticalPanel butPanel = new VerticalPanel();
+            butPanel.add(bReqTickByTickData);
+
+            JPanel rightPanel = new StackPanel();
+            rightPanel.add(paramPanel);
+            rightPanel.add(Box.createVerticalStrut(20));
+            rightPanel.add(butPanel);
+
+            setLayout(new BoxLayout(this, BoxLayout.X_AXIS) );
+            add(m_contractPanel);
+            add(Box.createHorizontalStrut(20) );
+            add(rightPanel);
+        }
+
+        protected void onReqTickByTickData() {
+            m_contractPanel.onOK();
+
+            TickByTickResultsPanel panel = new TickByTickResultsPanel(TickByTickType.valueOf(m_tickType.getSelectedItem().name()));
+
+            ApiDemo.INSTANCE.controller().reqTickByTickData(m_contract, m_tickType.getSelectedItem().name(), panel);
+            m_resultsPanel.addTab("Tick-By-Tick " + m_tickType.getSelectedItem().name() + " " + m_contract.symbol(), panel, true, true);
+        }
+    }
 }

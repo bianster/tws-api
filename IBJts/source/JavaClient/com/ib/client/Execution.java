@@ -3,6 +3,40 @@
 
 package com.ib.client;
 
+enum Liquidities {
+    None,
+    Added("Added Liquidity"),
+    Removed("Removed Liquidity"),
+    RoudedOut("Liquidity Routed Out");
+    
+    private String m_text;
+    
+    Liquidities(String text) {
+        m_text = text;
+    }
+    
+    Liquidities() {
+        m_text = "None";
+    }
+    
+    @Override
+    public String toString() {
+        return m_text;
+    }
+    
+    public static Liquidities fromInt(int n) {
+        if (n < 0 || n > Liquidities.values().length) {
+            return Liquidities.None;
+        }
+        
+        return Liquidities.values()[n];
+    }
+    
+    public static int toInt(Liquidities l) {
+        return l.ordinal();
+    }
+}
+
 public class Execution {
     private int 	m_orderId;
     private int 	m_clientId;
@@ -15,12 +49,13 @@ public class Execution {
     private double 	m_price;
     private int		m_permId;
     private int     m_liquidation;
-    private int		m_cumQty;
+    private double	m_cumQty;
     private double	m_avgPrice;
     private String  m_orderRef;
     private String 	m_evRule;
     private double 	m_evMultiplier;
-    private String m_modelCode;
+    private String  m_modelCode;
+    private Liquidities     m_lastLiquidity;
 
     // Get
     public int orderId()         { return m_orderId; }
@@ -34,12 +69,13 @@ public class Execution {
     public double price()        { return m_price; }
     public int permId()          { return m_permId; }
     public int liquidation()     { return m_liquidation; }
-    public int cumQty()          { return m_cumQty; }
+    public double cumQty()          { return m_cumQty; }
     public double avgPrice()     { return m_avgPrice; }
     public String orderRef()     { return m_orderRef; }
     public String evRule()       { return m_evRule; }
     public double evMultiplier() { return m_evMultiplier; }
     public String modelCode()    { return m_modelCode; }
+    public Liquidities lastLiquidity()   { return m_lastLiquidity; }
     
     // Set 
     public void orderId(int orderId)              { m_orderId = orderId; }
@@ -53,12 +89,13 @@ public class Execution {
     public void price(double price)               { m_price = price; }
     public void permId(int permId)                { m_permId = permId; }
     public void liquidation(int liquidation)      { m_liquidation = liquidation; }
-    public void cumQty(int cumQty)                { m_cumQty = cumQty; }
+    public void cumQty(double cumQty)             { m_cumQty = cumQty; }
     public void avgPrice(double avgPrice)         { m_avgPrice = avgPrice; }
     public void orderRef(String orderRef)         { m_orderRef = orderRef; }
     public void evRule(String evRule)             { m_evRule = evRule; }
     public void evMultiplier(double evMultiplier) { m_evMultiplier = evMultiplier; }
     public void modelCode(String modelCode)       { m_modelCode = modelCode; }
+    public void lastLiquidity(int v)              { m_lastLiquidity = Liquidities.fromInt(v); }
     
     public Execution() {
         m_orderId = 0;
@@ -70,6 +107,7 @@ public class Execution {
         m_cumQty = 0;
         m_avgPrice = 0;
         m_evMultiplier = 0;
+        m_lastLiquidity = Liquidities.None;
     }
 
     public Execution( int p_orderId, int p_clientId, String p_execId, String p_time,
@@ -98,18 +136,19 @@ public class Execution {
 
     @Override
     public boolean equals(Object p_other) {
-        boolean l_bRetVal = false;
+        if (this == p_other) {
+            return true;
+        }
+        if (!(p_other instanceof Execution)) {
+            return false;
+        }
+        Execution l_theOther = (Execution)p_other;
+        return m_execId.equals(l_theOther.m_execId);
+    }
 
-        if ( p_other == null ) {
-            l_bRetVal = false;
-		}
-        else if ( this == p_other ) {
-            l_bRetVal = true;
-        }
-        else {
-            Execution l_theOther = (Execution)p_other;
-            l_bRetVal = m_execId.equals( l_theOther.m_execId);
-        }
-        return l_bRetVal;
+    @Override
+    public int hashCode() {
+        // Since equals() uses m_execId only, the hashCode should do as well.
+        return m_execId != null ? m_execId.hashCode() : 0;
     }
 }

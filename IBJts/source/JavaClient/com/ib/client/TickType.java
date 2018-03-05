@@ -85,6 +85,14 @@ public enum TickType {
     RT_TRD_VOLUME(77, "rtTrdVolume"),
     CREDITMAN_MARK_PRICE(78, "creditmanMarkPrice"),
     CREDITMAN_SLOW_MARK_PRICE(79, "creditmanSlowMarkPrice"),
+    DELAYED_BID_OPTION( 80, "delayedBidOptComp" ),
+    DELAYED_ASK_OPTION( 81, "delayedAskOptComp" ),
+    DELAYED_LAST_OPTION( 82, "delayedLastOptComp" ),
+    DELAYED_MODEL_OPTION( 83, "delayedModelOptComp" ),
+    LAST_EXCH(84, "lastExchange"),
+    LAST_REG_TIME(85, "lastRegTime"),
+    FUTURES_OPEN_INTEREST(86, "futuresOpenInterest"),
+
     UNKNOWN( Integer.MAX_VALUE , "unknown" );
 
     private int m_ndx;
@@ -94,7 +102,7 @@ public enum TickType {
     public int index()    { return m_ndx; }
     public String field() { return m_field; }
 
-    private TickType(int ndx, String field) {
+    TickType(int ndx, String field) {
         m_ndx = ndx;
         m_field = field;
     }

@@ -1,4 +1,4 @@
-/* Copyright (C) 2013 Interactive Brokers LLC. All rights reserved.  This code is subject to the terms
+/* Copyright (C) 2017 Interactive Brokers LLC. All rights reserved.  This code is subject to the terms
  * and conditions of the IB API Non-Commercial License or the IB API Commercial License, as applicable. */
 
 package apidemo;
@@ -8,6 +8,7 @@ import java.awt.Dimension;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
+import java.util.List;
 
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -50,10 +51,10 @@ public class ComboPanel extends JPanel implements INewTab {
 		}
 	};
 	
-	ComboPanel() {
+	ComboPanel(MarketDataPanel parentPanel) {
 		NewTabbedPanel tabs = new NewTabbedPanel();
-		tabs.addTab( "Spreads", new SpreadsPanel() );
-		tabs.addTab( "EFP's", new EfpPanel() );
+		tabs.addTab( "Spreads", new SpreadsPanel(parentPanel) );
+		tabs.addTab( "EFP's", new EfpPanel(parentPanel) );
 		
 		final JTable ordersTable = new JTable( m_ordersModel);
 		JScrollPane ordersScroll = new JScrollPane( ordersTable);
@@ -91,19 +92,22 @@ public class ComboPanel extends JPanel implements INewTab {
 	
 	static class SpreadsPanel extends JPanel {
 		private final Contract m_contract = new Contract(); 
-		private final TCombo<Action> m_action = new TCombo<Action>( Action.values() );
+		private final TCombo<Action> m_action = new TCombo<>( Action.values() );
 		private final UpperField m_ratio = new UpperField( "1");
 		private final ContractPanel m_contractPanel = new ComboContractPanel();
-		private final ArrayList<LegRow> m_legRows = new ArrayList<LegRow>();
+		private final List<LegRow> m_legRows = new ArrayList<>();
 		private final LegModel m_legsModel = new LegModel( m_legRows);
 		private final JTable m_legsTable = new JTable( m_legsModel);
-		private final TopModel m_mktDataModel = new TopModel();
-		private final JTable m_mktDataTable = new JTable( m_mktDataModel);
+		private final TopModel m_mktDataModel;
+		private final JTable m_mktDataTable;
 		private DeltaNeutralContract m_dnContract;
 		private final DnPanel m_dnPanel = new DnPanel();
 		private final JLabel m_dnText = new JLabel();
 
-		SpreadsPanel() {
+		SpreadsPanel(MarketDataPanel parentPanel) {
+			m_mktDataModel = new TopModel(parentPanel);
+			m_mktDataTable = new JTable( m_mktDataModel);
+			
 			HtmlButton addLeg = new HtmlButton( "Add Leg") {
 				@Override protected void actionPerformed() {
 					onAddLeg();
@@ -169,13 +173,11 @@ public class ComboPanel extends JPanel implements INewTab {
 
 		protected void onAddLeg() {
 			m_contractPanel.onOK();
-			ApiDemo.INSTANCE.controller().reqContractDetails( m_contract, new IContractDetailsHandler() {
-				@Override public void contractDetails(ArrayList<ContractDetails> list) {
-					for (ContractDetails details : list) {
-						addLeg( details);
-					}
-				}
-			});
+			ApiDemo.INSTANCE.controller().reqContractDetails( m_contract, list -> {
+                for (ContractDetails details : list) {
+                    addLeg( details);
+                }
+            });
 		}
 
 		protected void onRemoveLeg() {
@@ -278,7 +280,7 @@ public class ComboPanel extends JPanel implements INewTab {
 		
 		class DnPanel extends VerticalPanel {
 			UpperField m_symbol = new UpperField();
-			TCombo<SecType> m_secType = new TCombo<SecType>( SecType.values() );
+			TCombo<SecType> m_secType = new TCombo<>( SecType.values() );
 			UpperField m_lastTradeDateOrContractMonth = new UpperField();
 			UpperField m_exchange = new UpperField();
 			UpperField m_currency = new UpperField();
@@ -310,20 +312,18 @@ public class ComboPanel extends JPanel implements INewTab {
 				dn.exchange( m_exchange.getText().toUpperCase() ); 
 				dn.currency( m_currency.getText().toUpperCase() ); 
 				
-				ApiDemo.INSTANCE.controller().reqContractDetails(dn, new IContractDetailsHandler() {
-					@Override public void contractDetails(ArrayList<ContractDetails> list) {
-						if (list.size() == 1) {
-						    Contract c = list.get( 0).contract();
-							m_dnContract = new DeltaNeutralContract( c.conid(), m_delta.getDouble(), m_price.getDouble() );
-							m_dnText.setText( String.format( "Delta-neutral: %s Delta: %s  Price: %s", c.description(), m_delta.getText(), m_price.getText() ) );
-						}
-						else {
-							ApiDemo.INSTANCE.show( "DN description does not define a uniqe contract");
-							m_dnContract = null;
-							m_dnText.setText( null);
-						}
-					}
-				});
+				ApiDemo.INSTANCE.controller().reqContractDetails(dn, list -> {
+                    if (list.size() == 1) {
+                        Contract c = list.get( 0).contract();
+                        m_dnContract = new DeltaNeutralContract( c.conid(), m_delta.getDouble(), m_price.getDouble() );
+                        m_dnText.setText( String.format( "Delta-neutral: %s Delta: %s  Price: %s", c.description(), m_delta.getText(), m_price.getText() ) );
+                    }
+                    else {
+                        ApiDemo.INSTANCE.show( "DN description does not define a uniqe contract");
+                        m_dnContract = null;
+                        m_dnText.setText( null);
+                    }
+                });
 			}
 		}
 	}
@@ -333,13 +333,15 @@ public class ComboPanel extends JPanel implements INewTab {
 		private final UpperField m_futExch = new UpperField( "ONE");
 		private final UpperField m_lastTradeDate = new UpperField( "201309");
 		private final UpperField m_stkExch = new UpperField( "SMART");
-		private final ArrayList<LegRow> m_legRows = new ArrayList<LegRow>();
+		private final List<LegRow> m_legRows = new ArrayList<>();
 		private final LegModel m_legsModel = new LegModel( m_legRows);
 		private final JTable m_legsTable = new JTable( m_legsModel);
-		private final EfpModel m_efpModel = new EfpModel();
+		private final EfpModel m_efpModel;
 		private final JCheckBox m_divProt = new JCheckBox();
 
-		EfpPanel() {
+		EfpPanel(MarketDataPanel parentPanel) {
+			m_efpModel = new EfpModel(parentPanel);
+			
 			HtmlButton addLeg = new HtmlButton( "Create EFP") {
 				@Override protected void actionPerformed() {
 					onCreateEfp();
@@ -401,7 +403,7 @@ public class ComboPanel extends JPanel implements INewTab {
 			fut.currency( "USD");
 			
 			ApiDemo.INSTANCE.controller().reqContractDetails( fut, new IContractDetailsHandler() {
-				@Override public void contractDetails(ArrayList<ContractDetails> list) {
+				@Override public void contractDetails(List<ContractDetails> list) {
 					// if two futures are returned, assume that the first is is no div prot and the 
 					// second one is div prot; unfortunately TWS does not send down the div prot flag
 					if (list.size() == 2) {
@@ -417,7 +419,7 @@ public class ComboPanel extends JPanel implements INewTab {
 				}
 				void addFutLeg(ContractDetails details) {
 					addLeg( details.contract(), Action.BUY, 1);
-				};
+				}
 			});
 
 			Contract stk = new Contract();
@@ -426,13 +428,11 @@ public class ComboPanel extends JPanel implements INewTab {
 			stk.exchange( m_stkExch.getText() );
 			stk.currency( "USD");
 			
-			ApiDemo.INSTANCE.controller().reqContractDetails( stk, new IContractDetailsHandler() {
-				@Override public void contractDetails(ArrayList<ContractDetails> list) {
-					for (ContractDetails data : list) {
-						addLeg( data.contract(), Action.SELL, 100);
-					}
-				}
-			});
+			ApiDemo.INSTANCE.controller().reqContractDetails( stk, list -> {
+                for (ContractDetails data : list) {
+                    addLeg( data.contract(), Action.SELL, 100);
+                }
+            });
 		}
 		
 		protected void addLeg(Contract contract, Action action, int ratio) {
@@ -489,12 +489,17 @@ public class ComboPanel extends JPanel implements INewTab {
 		}
 
 		static class EfpModel extends AbstractTableModel {
-			ArrayList<EfpRow> m_rows = new ArrayList<EfpRow>();
+			List<EfpRow> m_rows = new ArrayList<>();
+			MarketDataPanel m_parentPanel;
+			
+			EfpModel(MarketDataPanel parentPanel) {
+				m_parentPanel = parentPanel;
+			}
 
 			void addRow(Contract contract) {
-				EfpRow row = new EfpRow( this, contract.description() );
+				EfpRow row = new EfpRow( this, contract.description(), m_parentPanel );
 				m_rows.add( row);
-				ApiDemo.INSTANCE.controller().reqEfpMktData( contract, "", false, row);
+				ApiDemo.INSTANCE.controller().reqEfpMktData( contract, "", false, false, row);
 				fireTableRowsInserted( m_rows.size() - 1, m_rows.size() - 1);
 			}
 
@@ -549,8 +554,8 @@ public class ComboPanel extends JPanel implements INewTab {
 				double m_dividendImpact;
 				double m_dividendsToLastTradeDate;
 				
-				EfpRow(AbstractTableModel model, String description) {
-					super(model, description);
+				EfpRow(AbstractTableModel model, String description, MarketDataPanel parentPanel) {
+					super(model, description, parentPanel);
 				}
 
 				@Override public void tickEFP(int tickType, double basisPoints, String formattedBasisPoints, double impliedFuture, int holdDays, String futureLastTradeDate, double dividendImpact, double dividendsToLastTradeDate) {
@@ -572,16 +577,16 @@ public class ComboPanel extends JPanel implements INewTab {
 		Contract m_contract;
 		ComboLeg m_leg = new ComboLeg();
 
-		public LegRow(Contract c, ComboLeg leg) {
+		LegRow(Contract c, ComboLeg leg) {
 			m_contract = c;
 			m_leg = leg;
 		}
 	}
 
 	static class LegModel extends AbstractTableModel {
-		ArrayList<LegRow> m_legRows;
+		List<LegRow> m_legRows;
 
-		LegModel( ArrayList<LegRow> legRows) {
+		LegModel( List<LegRow> legRows) {
 			m_legRows = legRows;
 		}
 

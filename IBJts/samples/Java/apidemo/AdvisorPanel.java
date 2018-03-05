@@ -1,4 +1,4 @@
-/* Copyright (C) 2013 Interactive Brokers LLC. All rights reserved.  This code is subject to the terms
+/* Copyright (C) 2017 Interactive Brokers LLC. All rights reserved.  This code is subject to the terms
  * and conditions of the IB API Non-Commercial License or the IB API Commercial License, as applicable. */
 
 package apidemo;
@@ -6,6 +6,7 @@ package apidemo;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.util.ArrayList;
+import java.util.List;
 
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -55,8 +56,6 @@ public class AdvisorPanel extends NewTabPanel implements IAdvisorHandler {
 		}
 	};
 
-	private final JTable m_aliasTable = new JTable( m_aliasModel);
-
 	AdvisorPanel() {
 		JPanel mainPanel = new JPanel();
 		mainPanel.setLayout( new BoxLayout( mainPanel, BoxLayout.Y_AXIS));
@@ -64,8 +63,8 @@ public class AdvisorPanel extends NewTabPanel implements IAdvisorHandler {
 		mainPanel.add( new GroupsPanel() );
 		mainPanel.add( Box.createVerticalStrut(10));
 		mainPanel.add( new ProfilesPanel() );
-		
-		JScrollPane aliasScroll = new JScrollPane( m_aliasTable);
+
+		JScrollPane aliasScroll = new JScrollPane(new JTable( m_aliasModel));
 		aliasScroll.setBorder( new TitledBorder( "Aliases"));
 		aliasScroll.setPreferredSize(new Dimension( 300, 2000));
 		
@@ -85,26 +84,26 @@ public class AdvisorPanel extends NewTabPanel implements IAdvisorHandler {
 	@Override public void closed() {
 	}
 
-	public void groups(ArrayList<Group> groups) {
+	public void groups(List<Group> groups) {
 		m_groupModel.update( groups);
 	}
 
-	public void profiles(ArrayList<Profile> profiles) {
+	public void profiles(List<Profile> profiles) {
 		m_profileModel.update( profiles);
 	}
 
-	public void aliases(ArrayList<Alias> aliases) {
+	public void aliases(List<Alias> aliases) {
 		m_aliasModel.update( aliases);
 	}
 	
-	private class AliasModel extends AbstractTableModel {
-		ArrayList<Alias> m_list = new ArrayList<Alias>();
+	private static class AliasModel extends AbstractTableModel {
+		List<Alias> m_list = new ArrayList<>();
 		
 		@Override public int getRowCount() {
 			return m_list.size();
 		}
 
-		public void update(ArrayList<Alias> aliases) {
+		public void update(List<Alias> aliases) {
 			m_list.clear();
 			m_list.addAll( aliases);
 			fireTableDataChanged();
@@ -158,14 +157,14 @@ public class AdvisorPanel extends NewTabPanel implements IAdvisorHandler {
 			add( buts, BorderLayout.EAST);
 		}
 
-		protected void onCreateGroup() {
+		void onCreateGroup() {
 			String name = JOptionPane.showInputDialog( this, "Enter group name");
 			if (name != null) {
 				m_groupModel.add( name);
 			}
 		}
 
-		protected void onTransmit() {
+		void onTransmit() {
 			int rc = JOptionPane.showConfirmDialog( this, "This will replace all Groups in TWS with the ones shown here.\nAre you sure you want to do that?", "Confirm", JOptionPane.YES_NO_OPTION);
 			if (rc == 0) {
 				m_groupModel.transmit();
@@ -175,15 +174,15 @@ public class AdvisorPanel extends NewTabPanel implements IAdvisorHandler {
 	}
 	
 	private static class GroupModel extends AbstractTableModel {
-		TCombo<Method> combo = new TCombo<Method>(Method.values());
+		TCombo<Method> combo = new TCombo<>(Method.values());
 		DefaultCellEditor EDITOR = new DefaultCellEditor( combo);
-		ArrayList<Group> m_groups = new ArrayList<Group>();
+		List<Group> m_groups = new ArrayList<>();
 		
 		GroupModel() {		
 			EDITOR.setClickCountToStart( 1);
 		}
 		
-		void update(ArrayList<Group> groups) {
+		void update(List<Group> groups) {
 			m_groups.clear();
 			m_groups.addAll( groups);
 			fireTableDataChanged();
@@ -231,7 +230,7 @@ public class AdvisorPanel extends NewTabPanel implements IAdvisorHandler {
 			return true;
 		}
 		
-		public TableCellEditor getCellEditor(int row, int col) {
+		TableCellEditor getCellEditor(int row, int col) {
 			return col == 1 ? EDITOR : DEF_CELL_EDITOR;
 		}
 		
@@ -241,6 +240,7 @@ public class AdvisorPanel extends NewTabPanel implements IAdvisorHandler {
 				case 0: row.name( (String)val); break;
 				case 1: row.defaultMethod( (Method)val); break;
 				case 2: row.setAllAccounts( (String)val); break;
+				default: break;
 			}
 		}
 	}
@@ -288,16 +288,16 @@ public class AdvisorPanel extends NewTabPanel implements IAdvisorHandler {
 	}
 	
 	private static class ProfileModel extends AbstractTableModel {
-		TCombo<Type> combo = new TCombo<Type>(Type.values());
+		TCombo<Type> combo = new TCombo<>(Type.values());
 		DefaultCellEditor EDITOR = new DefaultCellEditor( combo);
-		ArrayList<Profile> m_profiles = new ArrayList<Profile>();
+		List<Profile> m_profiles = new ArrayList<>();
 		
 		ProfileModel() {		
 			EDITOR.setClickCountToStart( 1);
 			combo.removeItemAt( 0);
 		}
 		
-		public void update(ArrayList<Profile> profiles) {
+		public void update(List<Profile> profiles) {
 			m_profiles.clear();
 			m_profiles.addAll( profiles);
 			fireTableDataChanged();
@@ -345,7 +345,7 @@ public class AdvisorPanel extends NewTabPanel implements IAdvisorHandler {
 			return true;
 		}
 		
-		public TableCellEditor getCellEditor(int row, int col) {
+		TableCellEditor getCellEditor(int row, int col) {
 			return col == 1 ? EDITOR : DEF_CELL_EDITOR;
 		}
 
@@ -355,6 +355,7 @@ public class AdvisorPanel extends NewTabPanel implements IAdvisorHandler {
 				case 0: row.name( (String)val); break;
 				case 1: row.type( (Type)val); break;
 				case 2: row.setAllocations( (String)val); break;
+				default: break;
 			}
 		}
 	}

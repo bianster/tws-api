@@ -1,6 +1,8 @@
 package samples.testbed.contracts;
 
 import java.util.ArrayList;
+import java.util.List;
+
 import com.ib.client.ComboLeg;
 import com.ib.client.Contract;
 
@@ -13,7 +15,8 @@ public class ContractSamples {
 		contract.secType("STK");
 		contract.currency("USD");
 		contract.exchange("SMART");
-		//Specify the Primary Exchange attribute to avoid contract ambiguity
+		// Specify the Primary Exchange attribute to avoid contract ambiguity
+		// (there is an ambiguity because there is also a MSFT contract with primary exchange = "AEB")
 		contract.primaryExch("ISLAND");
 		//! [stkcontractwithprimary]
 		return contract;
@@ -34,7 +37,7 @@ public class ContractSamples {
 	public static Contract Bond() {
 		//! [bond]
 		Contract contract = new Contract();
-		contract.conid(147554578);
+		contract.conid(267433416);
 		contract.exchange("SMART");
 		//! [bond]
 		return contract;
@@ -96,6 +99,39 @@ public class ContractSamples {
 		return contract;
 	}
 	
+    public static Contract USStockCFD() {
+        //! [usstockcfd]
+        Contract contract = new Contract();
+        contract.symbol("IBM");
+        contract.secType("CFD");
+        contract.currency("USD");
+        contract.exchange("SMART");
+        //! [usstockcfd]
+        return contract;
+    }
+
+    public static Contract EuropeanStockCFD() {
+        //! [europeanstockcfd]
+        Contract contract = new Contract();
+        contract.symbol("BMW");
+        contract.secType("CFD");
+        contract.currency("EUR");
+        contract.exchange("SMART");
+        //! [europeanstockcfd]
+        return contract;
+    }
+
+    public static Contract CashCFD() {
+        //! [cashcfd]
+        Contract contract = new Contract();
+        contract.symbol("EUR");
+        contract.secType("CFD");
+        contract.currency("USD");
+        contract.exchange("SMART");
+        //! [cashcfd]
+        return contract;
+    }
+	
 	public static Contract EuropeanStock() {
 		Contract contract = new Contract();
 		contract.symbol("SMTPC");
@@ -121,18 +157,18 @@ public class ContractSamples {
 	public static Contract USStock() {
 		//! [stkcontract]
 		Contract contract = new Contract();
-		contract.symbol("IBKR");
+		contract.conid(46636665);
 		contract.secType("STK");
-		contract.currency("USD");
+		//contract.currency("USD");
 		//In the API side, NASDAQ is always defined as ISLAND
-		contract.exchange("ISLAND");
+		contract.exchange("SEHK");
 		//! [stkcontract]
 		return contract;
 	}
 	
 	public static Contract USStockAtSmart() {
 		Contract contract = new Contract();
-		contract.symbol("IBKR");
+		contract.symbol("IBM");
 		contract.secType("STK");
 		contract.currency("USD");
 		contract.exchange("SMART");
@@ -195,14 +231,25 @@ public class ContractSamples {
 		return contract;
 	}
 	
+	public static Contract DutchWarrant() {
+		//! [ioptcontract]
+		Contract contract = new Contract();
+		contract.localSymbol("B881G");
+		contract.secType("IOPT");
+		contract.exchange("SBF");
+		contract.currency("EUR");
+		//! [ioptcontract]
+		return contract;
+	}
+	
 	public static Contract SimpleFuture() {
 		//! [futcontract]
 		Contract contract = new Contract();
-		contract.symbol("ES");
+		contract.symbol("ZC");
 		contract.secType("FUT");
 		contract.currency("USD");
-		contract.exchange("GLOBEX");
-		contract.lastTradeDateOrContractMonth("201612");
+		contract.exchange("ECBOT");
+		contract.lastTradeDateOrContractMonth("20170914");
 		//! [futcontract]
 		return contract;
 	}
@@ -244,14 +291,14 @@ public class ContractSamples {
 	public static Contract FuturesOnOptions() {
 		//! [fopcontract]
 		Contract contract = new Contract();
-		contract.symbol("ES");
+		contract.symbol("SPX");
 		contract.secType("FOP");
 		contract.currency("USD");
 		contract.exchange("GLOBEX");
-		contract.lastTradeDateOrContractMonth("20160617");
+		contract.lastTradeDateOrContractMonth("20180315");
 		contract.right("C");
-		contract.strike(1810);
-		contract.multiplier("50");
+		contract.strike(1025);
+		contract.multiplier("250");
 		//! [fopcontract]
 		return contract;
 	}
@@ -296,7 +343,7 @@ public class ContractSamples {
 		ComboLeg leg1 = new ComboLeg();
 		ComboLeg leg2 = new ComboLeg();
 
-		ArrayList<ComboLeg> addAllLegs = new ArrayList<ComboLeg>();
+		List<ComboLeg> addAllLegs = new ArrayList<>();
 
 		leg1.conid(197397509);//DBK JUN 15 '18 C
 		leg1.ratio(1);
@@ -328,7 +375,7 @@ public class ContractSamples {
 		ComboLeg leg1 = new ComboLeg();
 		ComboLeg leg2 = new ComboLeg();
 
-		ArrayList<ComboLeg> addAllLegs = new ArrayList<ComboLeg>();
+		List<ComboLeg> addAllLegs = new ArrayList<>();
 
 		leg1.conid(43645865);//IBKR STK
 		leg1.ratio(1);
@@ -360,7 +407,7 @@ public class ContractSamples {
 		ComboLeg leg1 = new ComboLeg();
 		ComboLeg leg2 = new ComboLeg();
 
-		ArrayList<ComboLeg> addAllLegs = new ArrayList<ComboLeg>();
+		List<ComboLeg> addAllLegs = new ArrayList<>();
 
 		leg1.conid(195538625);//VIX FUT 20160217
 		leg1.ratio(1);
@@ -381,6 +428,38 @@ public class ContractSamples {
 		return contract;
 	}
 	
+		public static Contract SmartFutureComboContract() {
+		//! [smartfuturespread]
+		Contract contract = new Contract();
+		contract.symbol("WTI");  // WTI,COIL spread. Symbol can be defined as first leg symbol ("WTI") or currency ("USD").
+		contract.secType("BAG");
+		contract.currency("USD");
+		contract.exchange("SMART"); // smart-routed rather than direct routed
+
+		ComboLeg leg1 = new ComboLeg();
+		ComboLeg leg2 = new ComboLeg();
+
+		List<ComboLeg> addAllLegs = new ArrayList<>();
+
+		leg1.conid(55928698);// WTI future June 2017
+		leg1.ratio(1);
+		leg1.action("BUY");
+		leg1.exchange("IPE");
+
+		leg2.conid(55850663);// COIL future June 2017
+		leg2.ratio(1);
+		leg2.action("SELL");
+		leg2.exchange("IPE");
+
+		addAllLegs.add(leg1);
+		addAllLegs.add(leg2);
+
+		contract.comboLegs(addAllLegs);
+		//! [smartfuturespread]
+
+		return contract;
+	}
+	
 	public static Contract InterCmdtyFuturesContract() {
 		//! [intcmdfutcontract]
 		Contract contract = new Contract();
@@ -392,7 +471,7 @@ public class ContractSamples {
 		ComboLeg leg1 = new ComboLeg();
 		ComboLeg leg2 = new ComboLeg();
 
-		ArrayList<ComboLeg> addAllLegs = new ArrayList<ComboLeg>();
+		List<ComboLeg> addAllLegs = new ArrayList<>();
 
 		leg1.conid(47207310); //CL Dec'16 @NYMEX
 		leg1.ratio(1);
@@ -461,5 +540,47 @@ public class ContractSamples {
 		//! [newscontractmt]
 		return contract;
 	}
+
+	public static Contract ContFut() {
+		//! [continuousfuturescontract]
+		Contract contract = new Contract();
+		contract.symbol("ES");
+		contract.secType("CONTFUT");
+		contract.exchange("GLOBEX");
+		//! [continuousfuturescontract]
+		return contract;
+	}
+        
+    public static Contract ContAndExpiringFut() {
+        //! [contandexpiringfut]
+        Contract contract = new Contract();
+        contract.symbol("ES");
+        contract.secType("FUT+CONTFUT");
+        contract.exchange("GLOBEX");
+        //! [contandexpiringfut]
+        return contract;
+    }
 	
+	public static Contract JefferiesContract() {
+		//! [jefferies_contract]
+		Contract contract = new Contract();
+		contract.symbol("AAPL");
+		contract.secType("STK");
+		contract.exchange("JEFFALGO"); // must be direct-routed to JEFFALGO
+		contract.currency("USD");    // only available for US stocks
+		//! [jefferies_contract]
+		return contract;
+	}
+
+	public static Contract CSFBContract() {
+		//! [csfb_contract]
+		Contract contract = new Contract();
+		contract.symbol("IBKR");
+		contract.secType("STK");
+		contract.exchange("CSFBALGO"); // must be direct-routed to CSFBALGO
+		contract.currency("USD");    // only available for US stocks
+		//! [csfb_contract]
+		return contract;
+	}
+
 }

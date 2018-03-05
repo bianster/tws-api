@@ -67,6 +67,23 @@ public class EClientErrors {
     static final CodeMsgPair FAIL_SEND_CANACCOUNTUPDATESMULTI = new CodeMsgPair(556, "Cancel Account Updates Multi Sending Error - ");
     static final CodeMsgPair FAIL_SEND_REQSECDEFOPTPARAMS = new CodeMsgPair(557, "Request Security Definition Option Params Sending Error - ");
     static final CodeMsgPair FAIL_SEND_REQSOFTDOLLARTIERS = new CodeMsgPair(558, "Request Soft Dollar Tiers Sending Error - ");
+    static final CodeMsgPair FAIL_SEND_REQFAMILYCODES = new CodeMsgPair(559, "Request Family Codes Sending Error - ");
+    static final CodeMsgPair FAIL_SEND_REQMATCHINGSYMBOLS = new CodeMsgPair(560, "Request Matching Symbols Sending Error - ");
+    static final CodeMsgPair FAIL_SEND_REQMKTDEPTHEXCHANGES = new CodeMsgPair(561, "Request Market Depth Exchanges Sending Error - ");
+    static final CodeMsgPair FAIL_SEND_REQSMARTCOMPONENTS = new CodeMsgPair(562, "Request Smart Components Sending Error - ");
+    static final CodeMsgPair FAIL_SEND_REQNEWSPROVIDERS = new CodeMsgPair(563, "Request News Providers Sending Error - ");
+    static final CodeMsgPair FAIL_SEND_REQNEWSARTICLE = new CodeMsgPair(564, "Request News Article Sending Error - ");
+    static final CodeMsgPair FAIL_SEND_REQHISTORICALNEWS = new CodeMsgPair(565, "Request Historical News Sending Error - ");
+    static final CodeMsgPair FAIL_SEND_REQHEADTIMESTAMP = new CodeMsgPair(566, "Request Head Time Stamp Sending Error - ");
+    static final CodeMsgPair FAIL_SEND_CANHEADTIMESTAMP = new CodeMsgPair(567, "Cancel Head Time Stamp Sending Error - ");
+    static final CodeMsgPair FAIL_SEND_REQMARKETRULE = new CodeMsgPair(568, "Request Market Rule Sending Error - ");
+    static final CodeMsgPair FAIL_SEND_REQPNL = new CodeMsgPair(566, "Request PnL Sending Error - ");
+    static final CodeMsgPair FAIL_SEND_CANPNL = new CodeMsgPair(567, "Cancel PnL Sending Error - ");
+    static final CodeMsgPair FAIL_SEND_REQPNL_SINGLE = new CodeMsgPair(568, "Request PnL Single Sending Error - ");
+    static final CodeMsgPair FAIL_SEND_CANPNL_SINGLE = new CodeMsgPair(569, "Cancel PnL Single Sending Error - ");
+    static final CodeMsgPair FAIL_SEND_HISTORICAL_TICK = new CodeMsgPair(569, "Request Historical Ticks Sending Error - ");
+    static final CodeMsgPair FAIL_SEND_REQTICKBYTICK = new CodeMsgPair(570, "Request Tick-By-Tick Sending Error - ");
+    static final CodeMsgPair FAIL_SEND_CANTICKBYTICK = new CodeMsgPair(571, "Cancel Tick-By-Tick Sending Error - ");
 
     public EClientErrors() {
     }

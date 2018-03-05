@@ -1,3 +1,6 @@
+/* Copyright (C) 2013 Interactive Brokers LLC. All rights reserved.  This code is subject to the terms
+ * and conditions of the IB API Non-Commercial License or the IB API Commercial License, as applicable. */
+
 package com.ib.client;
 
 import java.io.Closeable;
@@ -5,74 +8,100 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInput;
+import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
-
-import java.lang.UnsupportedOperationException;
 
 class EDecoder implements ObjectInput {
     // incoming msg id's
-    static final int END_CONN           = -1;
-    static final int TICK_PRICE		= 1;
-    static final int TICK_SIZE		= 2;
-    static final int ORDER_STATUS	= 3;
-    static final int ERR_MSG		= 4;
-    static final int OPEN_ORDER         = 5;
-    static final int ACCT_VALUE         = 6;
-    static final int PORTFOLIO_VALUE    = 7;
-    static final int ACCT_UPDATE_TIME   = 8;
-    static final int NEXT_VALID_ID      = 9;
-    static final int CONTRACT_DATA      = 10;
-    static final int EXECUTION_DATA     = 11;
-    static final int MARKET_DEPTH     	= 12;
-    static final int MARKET_DEPTH_L2    = 13;
-    static final int NEWS_BULLETINS    	= 14;
-    static final int MANAGED_ACCTS    	= 15;
-    static final int RECEIVE_FA    	    = 16;
-    static final int HISTORICAL_DATA    = 17;
-    static final int BOND_CONTRACT_DATA = 18;
-    static final int SCANNER_PARAMETERS = 19;
-    static final int SCANNER_DATA       = 20;
-    static final int TICK_OPTION_COMPUTATION = 21;
-    static final int TICK_GENERIC = 45;
-    static final int TICK_STRING = 46;
-    static final int TICK_EFP = 47;
-    static final int CURRENT_TIME = 49;
-    static final int REAL_TIME_BARS = 50;
-    static final int FUNDAMENTAL_DATA = 51;
-    static final int CONTRACT_DATA_END = 52;
-    static final int OPEN_ORDER_END = 53;
-    static final int ACCT_DOWNLOAD_END = 54;
-    static final int EXECUTION_DATA_END = 55;
-    static final int DELTA_NEUTRAL_VALIDATION = 56;
-    static final int TICK_SNAPSHOT_END = 57;
-    static final int MARKET_DATA_TYPE = 58;
-    static final int COMMISSION_REPORT = 59;
-    static final int POSITION = 61;
-    static final int POSITION_END = 62;
-    static final int ACCOUNT_SUMMARY = 63;
-    static final int ACCOUNT_SUMMARY_END = 64;
-    static final int VERIFY_MESSAGE_API = 65;
-    static final int VERIFY_COMPLETED = 66;
-    static final int DISPLAY_GROUP_LIST = 67;
-    static final int DISPLAY_GROUP_UPDATED = 68;
-    static final int VERIFY_AND_AUTH_MESSAGE_API = 69;
-    static final int VERIFY_AND_AUTH_COMPLETED = 70;
-    static final int POSITION_MULTI = 71;
-    static final int POSITION_MULTI_END = 72;
-    static final int ACCOUNT_UPDATE_MULTI = 73;
-    static final int ACCOUNT_UPDATE_MULTI_END = 74;
-    static final int SECURITY_DEFINITION_OPTION_PARAMETER = 75;
-    static final int SECURITY_DEFINITION_OPTION_PARAMETER_END = 76;
-    static final int SOFT_DOLLAR_TIERS = 77;
+    private static final int END_CONN           = -1;
+    private static final int TICK_PRICE		= 1;
+    private static final int TICK_SIZE		= 2;
+    private static final int ORDER_STATUS	= 3;
+    private static final int ERR_MSG		= 4;
+    private static final int OPEN_ORDER         = 5;
+    private static final int ACCT_VALUE         = 6;
+    private static final int PORTFOLIO_VALUE    = 7;
+    private static final int ACCT_UPDATE_TIME   = 8;
+    private static final int NEXT_VALID_ID      = 9;
+    private static final int CONTRACT_DATA      = 10;
+    private static final int EXECUTION_DATA     = 11;
+    private static final int MARKET_DEPTH     	= 12;
+    private static final int MARKET_DEPTH_L2    = 13;
+    private static final int NEWS_BULLETINS    	= 14;
+    private static final int MANAGED_ACCTS    	= 15;
+    private static final int RECEIVE_FA    	    = 16;
+    private static final int HISTORICAL_DATA    = 17;
+    private static final int BOND_CONTRACT_DATA = 18;
+    private static final int SCANNER_PARAMETERS = 19;
+    private static final int SCANNER_DATA       = 20;
+    private static final int TICK_OPTION_COMPUTATION = 21;
+    private static final int TICK_GENERIC = 45;
+    private static final int TICK_STRING = 46;
+    private static final int TICK_EFP = 47;
+    private static final int CURRENT_TIME = 49;
+    private static final int REAL_TIME_BARS = 50;
+    private static final int FUNDAMENTAL_DATA = 51;
+    private static final int CONTRACT_DATA_END = 52;
+    private static final int OPEN_ORDER_END = 53;
+    private static final int ACCT_DOWNLOAD_END = 54;
+    private static final int EXECUTION_DATA_END = 55;
+    private static final int DELTA_NEUTRAL_VALIDATION = 56;
+    private static final int TICK_SNAPSHOT_END = 57;
+    private static final int MARKET_DATA_TYPE = 58;
+    private static final int COMMISSION_REPORT = 59;
+    private static final int POSITION = 61;
+    private static final int POSITION_END = 62;
+    private static final int ACCOUNT_SUMMARY = 63;
+    private static final int ACCOUNT_SUMMARY_END = 64;
+    private static final int VERIFY_MESSAGE_API = 65;
+    private static final int VERIFY_COMPLETED = 66;
+    private static final int DISPLAY_GROUP_LIST = 67;
+    private static final int DISPLAY_GROUP_UPDATED = 68;
+    private static final int VERIFY_AND_AUTH_MESSAGE_API = 69;
+    private static final int VERIFY_AND_AUTH_COMPLETED = 70;
+    private static final int POSITION_MULTI = 71;
+    private static final int POSITION_MULTI_END = 72;
+    private static final int ACCOUNT_UPDATE_MULTI = 73;
+    private static final int ACCOUNT_UPDATE_MULTI_END = 74;
+    private static final int SECURITY_DEFINITION_OPTION_PARAMETER = 75;
+    private static final int SECURITY_DEFINITION_OPTION_PARAMETER_END = 76;
+    private static final int SOFT_DOLLAR_TIERS = 77;
+    private static final int FAMILY_CODES = 78;
+    private static final int SYMBOL_SAMPLES = 79;
+    private static final int MKT_DEPTH_EXCHANGES = 80;
+    private static final int TICK_REQ_PARAMS = 81;
+    private static final int SMART_COMPONENTS = 82;
+    private static final int NEWS_ARTICLE = 83;
+    private static final int TICK_NEWS = 84;
+    private static final int NEWS_PROVIDERS = 85;
+    private static final int HISTORICAL_NEWS = 86;
+    private static final int HISTORICAL_NEWS_END = 87;
+    private static final int HEAD_TIMESTAMP = 88;
+    private static final int HISTOGRAM_DATA = 89;
+    private static final int HISTORICAL_DATA_UPDATE = 90;
+    private static final int REROUTE_MKT_DATA_REQ = 91;
+    private static final int REROUTE_MKT_DEPTH_REQ = 92;
+    private static final int MARKET_RULE = 93;
+    private static final int PNL = 94;
+    private static final int PNL_SINGLE = 95;
+    private static final int HISTORICAL_TICKS = 96;
+    private static final int HISTORICAL_TICKS_BID_ASK = 97;
+    private static final int HISTORICAL_TICKS_LAST = 98;
+    private static final int TICK_BY_TICK = 99;
+    
 
     static final int MAX_MSG_LENGTH = 0xffffff;
-    static final int REDIRECT_MSG_ID = -1;
-    
-    EClientMsgSink m_clientMsgSink;
-	EWrapper m_EWrapper;
-	int m_serverVersion;
+    private static final int REDIRECT_MSG_ID = -1;
+
+    private EClientMsgSink m_clientMsgSink;
+    private EWrapper m_EWrapper;
+    private int m_serverVersion;
 	private IMessageReader m_messageReader;
 
 	public EDecoder(int serverVersion, EWrapper callback) {
@@ -85,7 +114,7 @@ class EDecoder implements ObjectInput {
 		m_EWrapper = callback;
 	}
 	
-    protected void processFirstMsg() throws IOException {
+    private void processFirstMsg() throws IOException {
         m_serverVersion = readInt();
         
         // Handle redirect
@@ -116,10 +145,9 @@ class EDecoder implements ObjectInput {
 		m_EWrapper.connectAck();
     } 
     
-    protected boolean readMessageToInternalBuf(InputStream dis) throws IOException {
+    private boolean readMessageToInternalBuf(InputStream dis) {
   		m_messageReader = new PreV100MessageReader(dis);
-
-    	return m_messageReader != null;
+    	return true;
     }
     
     public int processMsg(EMessage msg) throws IOException {
@@ -138,220 +166,202 @@ class EDecoder implements ObjectInput {
         switch( msgId) {
             case END_CONN:
                 return 0;
-            case TICK_PRICE: {
+                
+            case TICK_PRICE:
                 processTickPriceMsg();
                 break;
-            }
-            case TICK_SIZE: {
+
+            case TICK_SIZE:
                 processTickSizeMsg();
                 break;
-            }
 
-            case POSITION:{
+            case POSITION:
                 processPositionMsg();
                 break;
-            }
 
-            case POSITION_END:{
+            case POSITION_END:
                 processPositionEndMsg();
                 break;
-            }
 
-            case ACCOUNT_SUMMARY:{
+            case ACCOUNT_SUMMARY:
                 processAccountSummaryMsg();
                 break;
-            }
 
-            case ACCOUNT_SUMMARY_END:{
+            case ACCOUNT_SUMMARY_END:
                 processAccountSummaryEndMsg();
                 break;
-            }
 
-            case TICK_OPTION_COMPUTATION: {
-                processTickOptionComputatioMsg();
+            case TICK_OPTION_COMPUTATION:
+                processTickOptionComputationMsg();
             	break;
-            }
 
-            case TICK_GENERIC: {
+            case TICK_GENERIC:
                 processTickGenericMsg();
                 break;
-            }
 
-            case TICK_STRING: {
+            case TICK_STRING:
                 processTickStringMsg();
                 break;
-            }
 
-            case TICK_EFP: {
+            case TICK_EFP:
                 processTickEFPMsg();
                 break;
-            }
 
-            case ORDER_STATUS: {
+            case ORDER_STATUS:
                 processOrderStatusMsg();
                 break;
-            }
 
-            case ACCT_VALUE: {
+            case ACCT_VALUE:
                 processAcctValueMsg();
                 break;
-            }
 
-            case PORTFOLIO_VALUE: {
+            case PORTFOLIO_VALUE:
                 processPortfolioValueMsg();
-
                 break;
-            }
 
-            case ACCT_UPDATE_TIME: {
+            case ACCT_UPDATE_TIME:
                 processAcctUpdateTimeMsg();
                 break;
-            }
 
-            case ERR_MSG: {
+            case ERR_MSG:
                 processErrMsgMsg();
                 break;
-            }
 
-            case OPEN_ORDER: {
+            case OPEN_ORDER:
                 processOpenOrderMsg();
                 break;
-            }
 
-            case NEXT_VALID_ID: {
+            case NEXT_VALID_ID:
                 processNextValidIdMsg();
                 break;
-            }
 
-            case SCANNER_DATA: {
+            case SCANNER_DATA:
                 processScannerDataMsg();
                 break;
-            }
 
-            case CONTRACT_DATA: {
+            case CONTRACT_DATA:
                 processContractDataMsg();
                 break;
-            }
-            case BOND_CONTRACT_DATA: {
+           
+            case BOND_CONTRACT_DATA:
                 processBondContractDataMsg();
                 break;
-            }
-            case EXECUTION_DATA: {
+            
+            case EXECUTION_DATA:
                 processExecutionDataMsg();
                 break;
-            }
-            case MARKET_DEPTH: {
+            
+            case MARKET_DEPTH:
                 processMarketDepthMsg();
                 break;
-            }
-            case MARKET_DEPTH_L2: {
+            
+            case MARKET_DEPTH_L2:
                 processMarketDepthL2Msg();
                 break;
-            }
-            case NEWS_BULLETINS: {
+            
+            case NEWS_BULLETINS:
                 processNewsBulletinsMsg();
                 break;
-            }
-            case MANAGED_ACCTS: {
+            
+            case MANAGED_ACCTS:
                 processManagedAcctsMsg();
                 break;
-            }
-            case RECEIVE_FA: {
-              processReceiveFaMsg();
-              break;
-            }
-            case HISTORICAL_DATA: {
-              processHistoricalDataMsg();
-              break;
-            }
-            case SCANNER_PARAMETERS: {
+
+            case RECEIVE_FA:
+                processReceiveFaMsg();
+                break;
+            
+            case HISTORICAL_DATA:
+                processHistoricalDataMsg();
+                break;
+            
+            case SCANNER_PARAMETERS:
                 processScannerParametersMsg();
                 break;
-            }
-            case CURRENT_TIME: {
+
+            case CURRENT_TIME:
                 processCurrentTimeMsg();
                 break;
-            }
-            case REAL_TIME_BARS: {
+            
+            case REAL_TIME_BARS:
                 processRealTimeBarsMsg();
                 break;
-            }
-            case FUNDAMENTAL_DATA: {
+            
+            case FUNDAMENTAL_DATA:
                 processFundamentalDataMsg();
                 break;
-            }
-            case CONTRACT_DATA_END: {
+            
+            case CONTRACT_DATA_END:
                 processContractDataEndMsg();
                 break;
-            }
-            case OPEN_ORDER_END: {
+            
+            case OPEN_ORDER_END:
                 processOpenOrderEndMsg();
                 break;
-            }
-            case ACCT_DOWNLOAD_END: {
+            
+            case ACCT_DOWNLOAD_END:
                 processAcctDownloadEndMsg();
                 break;
-            }
-            case EXECUTION_DATA_END: {
+            
+            case EXECUTION_DATA_END:
                 processExecutionDataEndMsg();
                 break;
-            }
-            case DELTA_NEUTRAL_VALIDATION: {
-                processDeltaNetrualValidationMsg();
+            
+            case DELTA_NEUTRAL_VALIDATION:
+                processDeltaNeutralValidationMsg();
                 break;
-            }
-            case TICK_SNAPSHOT_END: {
+            
+            case TICK_SNAPSHOT_END:
                 processTickSnapshotEndMsg();
                 break;
-            }
-            case MARKET_DATA_TYPE: {
+            
+            case MARKET_DATA_TYPE:
                 processMarketDataTypeMsg();
                 break;
-            }
-            case COMMISSION_REPORT: {
+            
+            case COMMISSION_REPORT:
                 processCommissionReportMsg();
                 break;
-            }
-            case VERIFY_MESSAGE_API: {
+            
+            case VERIFY_MESSAGE_API:
                 processVerifyMessageApiMsg();
                 break;
-            }
-            case VERIFY_COMPLETED: {
-                processVerivyCompletedMsg();
+            
+            case VERIFY_COMPLETED:
+                processVerifyCompletedMsg();
                 break;
-            }
-            case DISPLAY_GROUP_LIST: {
+            
+            case DISPLAY_GROUP_LIST:
                 processDisplayGroupListMsg();
                 break;
-            }
-            case DISPLAY_GROUP_UPDATED: {
+            
+            case DISPLAY_GROUP_UPDATED:
                 processDisplayGroupUpdatedMsg();
                 break;
-            }
-            case VERIFY_AND_AUTH_MESSAGE_API: {
+            
+            case VERIFY_AND_AUTH_MESSAGE_API:
                 processVerifyAndAuthMessageMsg();
                 break;
-            }
-            case VERIFY_AND_AUTH_COMPLETED: {
+            
+            case VERIFY_AND_AUTH_COMPLETED:
                 processVerifyAndAuthCompletedMsg();
                 break;
-            }
-            case POSITION_MULTI: {
+            
+            case POSITION_MULTI:
                 processPositionMultiMsg();
                 break;
-            }
-            case POSITION_MULTI_END: {
+            
+            case POSITION_MULTI_END:
                 processPositionMultiEndMsg();
                 break;
-            }
-            case ACCOUNT_UPDATE_MULTI: {
+            
+            case ACCOUNT_UPDATE_MULTI:
                 processAccountUpdateMultiMsg();
                 break;
-            }
-            case ACCOUNT_UPDATE_MULTI_END: {
+            
+            case ACCOUNT_UPDATE_MULTI_END:
                 processAccountUpdateMultiEndMsg();
-                break;
-            }
+                break;            
             
             case SECURITY_DEFINITION_OPTION_PARAMETER:
             	processSecurityDefinitionOptionalParameterMsg();
@@ -365,6 +375,94 @@ class EDecoder implements ObjectInput {
             	processSoftDollarTiersMsg();
             	break;
 
+            case FAMILY_CODES:
+                processFamilyCodesMsg();
+                break;           	
+            	
+            case SMART_COMPONENTS:
+            	processSmartComponentsMsg();
+            	break;
+            	
+            case TICK_REQ_PARAMS:
+            	processTickReqParamsMsg();
+            	break;
+
+            case SYMBOL_SAMPLES:
+                processSymbolSamplesMsg();
+                break;
+
+            case MKT_DEPTH_EXCHANGES:
+                processMktDepthExchangesMsg();
+                break;
+                
+            case HEAD_TIMESTAMP:
+            	processHeadTimestampMsg();
+            	break;
+
+            case TICK_NEWS:
+                processTickNewsMsg();
+                break;
+
+            case NEWS_PROVIDERS:
+                processNewsProvidersMsg();
+                break;
+
+            case NEWS_ARTICLE:
+                processNewsArticleMsg();
+                break;
+
+            case HISTORICAL_NEWS:
+                processHistoricalNewsMsg();
+                break;
+
+            case HISTORICAL_NEWS_END:
+                processHistoricalNewsEndMsg();
+                break;
+                
+            case HISTOGRAM_DATA:
+            	processHistogramDataMsg();
+            	break;
+            	
+            case HISTORICAL_DATA_UPDATE:
+                processHistoricalDataUpdateMsg();
+                break;
+
+            case REROUTE_MKT_DATA_REQ:
+                processRerouteMktDataReq();
+                break;
+
+            case REROUTE_MKT_DEPTH_REQ:
+                processRerouteMktDepthReq();
+                break;
+
+            case MARKET_RULE:
+                processMarketRuleMsg();
+                break;
+                
+            case PNL:
+            	processPnLMsg();
+            	break;
+            	
+            case PNL_SINGLE:
+            	processPnLSingleMsg();
+            	break;
+            	
+            case HISTORICAL_TICKS:
+                processHistoricalTicks();
+                break;
+                
+            case HISTORICAL_TICKS_BID_ASK:
+                processHistoricalTicksBidAsk();
+                break;
+                
+            case HISTORICAL_TICKS_LAST:
+                processHistoricalTicksLast();
+                break;
+
+            case TICK_BY_TICK:
+                processTickByTickMsg();
+                break;
+                
             default: {
                 m_EWrapper.error( EClientErrors.NO_VALID_ID, EClientErrors.UNKNOWN_ID.code(), EClientErrors.UNKNOWN_ID.msg());
                 return 0;
@@ -373,6 +471,299 @@ class EDecoder implements ObjectInput {
         
         m_messageReader.close();
         return m_messageReader.msgLength();
+    }
+
+    private void processHistoricalTicksLast() throws IOException {
+        int reqId = readInt(),
+            tickCount = readInt();
+                
+        List<HistoricalTickLast> ticks = new ArrayList<>();
+        
+        for (int i = 0; i < tickCount; i++) {
+            long time = readLong();
+            int mask = readInt();
+            double price = readDouble();
+            long size = readLong();
+            String exchange = readStr(),
+                   specialConditions = readStr();
+
+            ticks.add(new HistoricalTickLast(time, mask, price, size, exchange, specialConditions));
+        }
+
+        boolean done = readBoolean();
+
+        m_EWrapper.historicalTicksLast(reqId, ticks, done);
+    }
+
+    private void processHistoricalTicksBidAsk() throws IOException {
+        int reqId = readInt(),
+            tickCount = readInt();
+            
+        List<HistoricalTickBidAsk> ticks = new ArrayList<>();
+        
+        for (int i = 0; i < tickCount; i++) {
+            long time = readLong();
+            int mask = readInt();
+            double priceBid = readDouble(),
+                   priceAsk = readDouble();
+            long sizeBid = readLong(),
+                 sizeAsk = readLong();
+
+            ticks.add(new HistoricalTickBidAsk(time, mask, priceBid, priceAsk, sizeBid, sizeAsk));
+        }
+
+        boolean done = readBoolean();
+
+        m_EWrapper.historicalTicksBidAsk(reqId, ticks, done);       
+    }
+
+    private void processHistoricalTicks() throws IOException {
+        int reqId = readInt(),
+            tickCount = readInt();
+        
+        List<HistoricalTick> ticks = new ArrayList<>();
+        
+        for (int i = 0; i < tickCount; i++) {
+            long time = readLong();
+            readInt();//for consistency
+            double price = readDouble();
+            long size = readLong();
+            
+            ticks.add(new HistoricalTick(time, price, size));
+        }
+        
+        boolean done = readBoolean();
+
+        m_EWrapper.historicalTicks(reqId, ticks, done);       
+    }
+
+    private void processMarketRuleMsg() throws IOException {
+        int marketRuleId = readInt();
+
+        PriceIncrement[] priceIncrements;
+        int nPriceIncrements = readInt();
+        if (nPriceIncrements > 0) {
+            priceIncrements = new PriceIncrement[nPriceIncrements];
+            for (int i = 0; i < nPriceIncrements; i++){
+                priceIncrements[i] = new PriceIncrement(readDouble(), readDouble());
+            }
+        } else {
+            priceIncrements = new PriceIncrement[0];
+        }
+
+        m_EWrapper.marketRule(marketRuleId, priceIncrements);
+    }
+
+    private void processRerouteMktDepthReq() throws IOException {
+        int reqId = readInt();
+        int conId = readInt();
+        String exchange = readStr();
+
+        m_EWrapper.rerouteMktDepthReq(reqId, conId, exchange);
+    }
+    
+    private void processRerouteMktDataReq() throws IOException {
+        int reqId = readInt();
+        int conId = readInt();
+        String exchange = readStr();
+
+        m_EWrapper.rerouteMktDataReq(reqId, conId, exchange);
+    }
+    
+    private void processHistoricalDataUpdateMsg() throws IOException {
+        int reqId = readInt();
+        int barCount = readInt();
+        String date = readStr();
+        double open = readDouble();
+        double close = readDouble();
+        double high = readDouble();
+        double low = readDouble();
+        double WAP = readDouble();
+        long volume = readLong();
+
+        m_EWrapper.historicalDataUpdate(reqId, new Bar(date, open, high, low, close, volume, barCount, WAP));
+    }
+
+    private void processPnLSingleMsg() throws IOException {
+    	int reqId = readInt();
+    	int pos = readInt();
+    	double dailyPnL = readDouble();
+    	double unrealizedPnL = Double.MAX_VALUE;
+        double realizedPnL = Double.MAX_VALUE;
+    	
+        if (m_serverVersion >= EClient.MIN_SERVER_VER_UNREALIZED_PNL) {
+            unrealizedPnL = readDouble();
+        }
+
+        if (m_serverVersion >= EClient.MIN_SERVER_VER_REALIZED_PNL) {
+            realizedPnL = readDouble();
+        }
+
+    	double value = readDouble();
+    	
+        m_EWrapper.pnlSingle(reqId, pos, dailyPnL, unrealizedPnL, realizedPnL, value);
+	}
+
+	private void processPnLMsg() throws IOException {
+		int reqId = readInt();
+		double dailyPnL = readDouble();
+		double unrealizedPnL = Double.MAX_VALUE;
+		double realizedPnL = Double.MAX_VALUE;
+		
+		if (m_serverVersion >= EClient.MIN_SERVER_VER_UNREALIZED_PNL) {
+		    unrealizedPnL = readDouble();
+		}
+		
+		if (m_serverVersion >= EClient.MIN_SERVER_VER_REALIZED_PNL) {
+		    realizedPnL = readDouble();
+		}
+		
+		m_EWrapper.pnl(reqId, dailyPnL, unrealizedPnL, realizedPnL);
+	}
+
+    private void processHistogramDataMsg() throws IOException {
+    	int reqId = readInt();
+    	int n = readInt();
+    	List<HistogramEntry> items = new ArrayList<>(n);
+    	
+    	for (int i = 0; i < n; i++) {
+    		items.add(new HistogramEntry(readDouble(), readLong()));
+    	}
+    	
+    	m_EWrapper.histogramData(reqId, items);
+	}
+
+	private void processHistoricalNewsEndMsg() throws IOException {
+        int requestId = readInt();
+        boolean hasMore = readBoolFromInt();
+
+        m_EWrapper.historicalNewsEnd(requestId, hasMore);
+    }
+
+    private void processHistoricalNewsMsg() throws IOException {
+        int requestId = readInt();
+        String time = readStr();
+        String providerCode = readStr();
+        String articleId = readStr();
+        String headline = readStr();
+
+        m_EWrapper.historicalNews(requestId, time, providerCode, articleId, headline);
+    }
+
+    private void processNewsArticleMsg() throws IOException {
+        int requestId = readInt();
+        int articleType = readInt();
+        String articleText = readStr();
+
+        m_EWrapper.newsArticle(requestId, articleType, articleText);
+    }
+
+    private void processNewsProvidersMsg() throws IOException {
+        NewsProvider[] newsProviders = new NewsProvider[0];
+        int nNewsProviders = readInt();
+
+        if (nNewsProviders > 0) {
+            newsProviders = new NewsProvider[nNewsProviders];
+
+            for (int i = 0; i < nNewsProviders; i++)
+            {
+                newsProviders[i] = new NewsProvider(readStr(), readStr());
+            }
+        }
+
+        m_EWrapper.newsProviders(newsProviders);
+    }
+
+    private void processTickNewsMsg() throws IOException {
+        int tickerId = readInt();
+        long timeStamp = readLong();
+        String providerCode = readStr();
+        String articleId = readStr();
+        String headline = readStr();
+        String extraData = readStr();
+
+        m_EWrapper.tickNews(tickerId, timeStamp, providerCode, articleId, headline, extraData);
+    }
+
+    private void processHeadTimestampMsg() throws IOException {
+		int reqId = readInt();
+		String headTimestamp = readStr();
+		
+		m_EWrapper.headTimestamp(reqId, headTimestamp);
+	}
+
+    private void processMktDepthExchangesMsg() throws IOException {
+        DepthMktDataDescription[] depthMktDataDescriptions = new DepthMktDataDescription[0];
+        int nDepthMktDataDescriptions = readInt();
+
+        if (nDepthMktDataDescriptions > 0) {
+            depthMktDataDescriptions = new DepthMktDataDescription[nDepthMktDataDescriptions];
+
+            for (int i = 0; i < nDepthMktDataDescriptions; i++)
+            {
+                if (m_serverVersion >= EClient.MIN_SERVER_VER_SERVICE_DATA_TYPE) {
+                    depthMktDataDescriptions[i] = new DepthMktDataDescription(readStr(), readStr(), readStr(), readStr(), readIntMax());
+                } else {
+                    depthMktDataDescriptions[i] = new DepthMktDataDescription(readStr(), readStr(), "", readBoolFromInt() ? "Deep2" : "Deep", Integer.MAX_VALUE);
+                }
+            }
+        }
+
+        m_EWrapper.mktDepthExchanges(depthMktDataDescriptions);
+    }
+
+    private void processSymbolSamplesMsg() throws IOException {
+        int reqId = readInt();
+        ContractDescription[] contractDescriptions = new ContractDescription[0];
+        int nContractDescriptions = readInt();
+
+        if (nContractDescriptions > 0){
+            contractDescriptions = new ContractDescription[nContractDescriptions];
+
+            for (int i = 0; i < nContractDescriptions; i++)
+            {
+                // read contract fields
+                Contract contract = new Contract();
+                contract.conid(readInt());
+                contract.symbol(readStr());
+                contract.secType(readStr());
+                contract.primaryExch(readStr());
+                contract.currency(readStr());
+
+                // read derivative sec types list
+                String[] derivativeSecTypes = new String[0];
+                int nDerivativeSecTypes = readInt();
+
+                if (nDerivativeSecTypes > 0){
+                    derivativeSecTypes = new String[nDerivativeSecTypes];
+                    for (int j = 0; j < nDerivativeSecTypes; j++)
+                    {
+                        derivativeSecTypes[j] = readStr();
+                    }
+                }
+
+                ContractDescription contractDescription = new ContractDescription(contract, derivativeSecTypes);
+                contractDescriptions[i] = contractDescription;
+            }
+        }
+
+        m_EWrapper.symbolSamples(reqId, contractDescriptions);
+    }
+
+    private void processFamilyCodesMsg() throws IOException {
+        FamilyCode[] familyCodes = new FamilyCode[0];
+        int nFamilyCodes = readInt();
+
+        if (nFamilyCodes > 0) {
+            familyCodes = new FamilyCode[nFamilyCodes];
+
+            for (int i = 0; i < nFamilyCodes; i++)
+            {
+                familyCodes[i] = new FamilyCode(readStr(), readStr());
+            }
+        }
+
+        m_EWrapper.familyCodes(familyCodes);
     }
 
 	private void processSoftDollarTiersMsg() throws IOException {
@@ -400,8 +791,8 @@ class EDecoder implements ObjectInput {
 		String tradingClass = readStr();
 		String multiplier = readStr();
 		int expirationsSize = readInt();
-		Set<String> expirations = new HashSet<String>();
-		Set<Double> strikes = new HashSet<Double>();
+		Set<String> expirations = new HashSet<>();
+		Set<Double> strikes = new HashSet<>();
 		
 		for (int i = 0; i < expirationsSize; i++) {
 			expirations.add(readStr());
@@ -449,7 +840,7 @@ class EDecoder implements ObjectInput {
 		m_EWrapper.displayGroupList(reqId, groups);
 	}
 
-	private void processVerivyCompletedMsg() throws IOException {
+	private void processVerifyCompletedMsg() throws IOException {
 		/*int version =*/ readInt();
 		String isSuccessfulStr = readStr();
 		boolean isSuccessful = "true".equals(isSuccessfulStr);
@@ -494,7 +885,7 @@ class EDecoder implements ObjectInput {
 		m_EWrapper.tickSnapshotEnd( reqId);
 	}
 
-	private void processDeltaNetrualValidationMsg() throws IOException {
+	private void processDeltaNeutralValidationMsg() throws IOException {
 		/*int version =*/ readInt();
 		int reqId = readInt();
 
@@ -553,61 +944,69 @@ class EDecoder implements ObjectInput {
 	}
 
 	private void processScannerParametersMsg() throws IOException {
-		int version = readInt();
+		/*int version =*/ readInt();
 		String xml = readStr();
 		m_EWrapper.scannerParameters(xml);
 	}
 
 	private void processHistoricalDataMsg() throws IOException {
-		int version = readInt();
-		  int reqId = readInt();
-		  String startDateStr;
-		  String endDateStr;
-		  String completedIndicator = "finished";
-		  if (version >= 2) {
-			  startDateStr = readStr();
-			  endDateStr = readStr();
-			  completedIndicator += "-" + startDateStr + "-" + endDateStr;
-		  }
-		  int itemCount = readInt();
-		  for (int ctr = 0; ctr < itemCount; ctr++) {
-		    String date = readStr();
-		    double open = readDouble();
-		    double high = readDouble();
-		    double low = readDouble();
-		    double close = readDouble();
-		    int volume = readInt();
-		    double WAP = readDouble();
-		    String hasGaps = readStr();
-		    int barCount = -1;
-		    if (version >= 3) {
-		    	barCount = readInt();
-		    }
-		    m_EWrapper.historicalData(reqId, date, open, high, low,
-		                            close, volume, barCount, WAP,
-		                            Boolean.valueOf(hasGaps).booleanValue());
-		  }
-		  // send end of dataset marker
-		  m_EWrapper.historicalData(reqId, completedIndicator, -1, -1, -1, -1, -1, -1, -1, false);
+	    int version = Integer.MAX_VALUE;
+	    
+	    if (m_serverVersion < EClient.MIN_SERVER_VER_SYNT_REALTIME_BARS) {
+	        version = readInt();
+	    }
+	    
+	    int reqId = readInt();
+	    String startDateStr = "";
+	    String endDateStr = "";
+
+	    if (version >= 2) {
+	        startDateStr = readStr();
+	        endDateStr = readStr();
+	    }
+	    int itemCount = readInt();
+	    for (int ctr = 0; ctr < itemCount; ctr++) {
+	        String date = readStr();
+	        double open = readDouble();
+	        double high = readDouble();
+	        double low = readDouble();
+	        double close = readDouble();
+            long volume = m_serverVersion < EClient.MIN_SERVER_VER_SYNT_REALTIME_BARS ? readInt() : readLong();
+	        double WAP = readDouble();
+	        
+	        if (m_serverVersion < EClient.MIN_SERVER_VER_SYNT_REALTIME_BARS) {	        
+	            /*String hasGaps = */readStr();
+	        }
+	        
+	        int barCount = -1;
+	        
+	        if (version >= 3) {
+	            barCount = readInt();
+	        }
+	        
+	        m_EWrapper.historicalData(reqId, new Bar(date, open, high, low, close, volume, barCount, WAP));
+	    }
+	    // send end of dataset marker
+	    m_EWrapper.historicalDataEnd(reqId, startDateStr, endDateStr);
 	}
 
 	private void processReceiveFaMsg() throws IOException {
-		int version = readInt();
-		  int faDataType = readInt();
-		  String xml = readStr();
+	    /*int version =*/ readInt();
+	    int faDataType = readInt();
+	    String xml = readStr();
 
-		  m_EWrapper.receiveFA(faDataType, xml);
+	    m_EWrapper.receiveFA(faDataType, xml);
 	}
 
 	private void processManagedAcctsMsg() throws IOException {
-		int version = readInt();
+		/*int version =*/ readInt();
 		String accountsList = readStr();
 
 		m_EWrapper.managedAccounts( accountsList);
 	}
 
 	private void processNewsBulletinsMsg() throws IOException {
-		int version = readInt();
+		/*int version =*/ readInt();
 		int newsMsgId = readInt();
 		int newsMsgType = readInt();
 		String newsMessage = readStr();
@@ -617,7 +1016,7 @@ class EDecoder implements ObjectInput {
 	}
 
 	private void processMarketDepthL2Msg() throws IOException {
-		int version = readInt();
+		/*int version =*/ readInt();
 		int id = readInt();
 
 		int position = readInt();
@@ -632,7 +1031,7 @@ class EDecoder implements ObjectInput {
 	}
 
 	private void processMarketDepthMsg() throws IOException {
-		int version = readInt();
+		/*int version =*/ readInt();
 		int id = readInt();
 
 		int position = readInt();
@@ -646,7 +1045,11 @@ class EDecoder implements ObjectInput {
 	}
 
 	private void processExecutionDataMsg() throws IOException {
-		int version = readInt();
+		int version = m_serverVersion;
+		
+		if (m_serverVersion < EClient.MIN_SERVER_VER_LAST_LIQUIDITY) {
+		    version = readInt();
+		}
 
 		int reqId = -1;
 		if (version >= 7) {
@@ -699,7 +1102,7 @@ class EDecoder implements ObjectInput {
 		    exec.liquidation(readInt());
 		}
 		if (version >= 6) {
-			exec.cumQty(readInt());
+			exec.cumQty(readDouble());
 			exec.avgPrice(readDouble());
 		}
 		if (version >= 8) {
@@ -712,6 +1115,11 @@ class EDecoder implements ObjectInput {
 		if (m_serverVersion >= EClient.MIN_SERVER_VER_MODELS_SUPPORT) {
 			exec.modelCode(readStr());
 		}
+		
+        if (m_serverVersion >= EClient.MIN_SERVER_VER_LAST_LIQUIDITY) {
+            exec.lastLiquidity(readInt());
+        }
+
 
 		m_EWrapper.execDetails( reqId, contract, exec);
 	}
@@ -745,6 +1153,9 @@ class EDecoder implements ObjectInput {
 		contract.contract().tradingClass(readStr());
 		contract.contract().conid(readInt());
 		contract.minTick(readDouble());
+		if (m_serverVersion >= EClient.MIN_SERVER_VER_MD_SIZE_MULTIPLIER) {
+			contract.mdSizeMultiplier(readInt());
+		}
 		contract.orderTypes(readStr());
 		contract.validExchanges(readStr());
 		if (version >= 2) {
@@ -763,7 +1174,7 @@ class EDecoder implements ObjectInput {
 		if (version >= 5) {
 		    int secIdListCount = readInt();
 		    if (secIdListCount  > 0) {
-		        contract.secIdList(new ArrayList<TagValue>(secIdListCount));
+		        contract.secIdList(new ArrayList<>(secIdListCount));
 		        for (int i = 0; i < secIdListCount; ++i) {
 		            TagValue tagValue = new TagValue();
 		            tagValue.m_tag = readStr();
@@ -772,7 +1183,13 @@ class EDecoder implements ObjectInput {
 		        }
 		    }
 		}
-
+		if (m_serverVersion >= EClient.MIN_SERVER_VER_AGG_GROUP) {
+			contract.aggGroup(readInt());
+		}
+		if (m_serverVersion >= EClient.MIN_SERVER_VER_MARKET_RULES) {
+			contract.marketRuleIds(readStr());
+		}
+		
 		m_EWrapper.bondContractDetails( reqId, contract);
 	}
 
@@ -797,6 +1214,9 @@ class EDecoder implements ObjectInput {
 		contract.contract().tradingClass(readStr());
 		contract.contract().conid(readInt());
 		contract.minTick(readDouble());
+		if (m_serverVersion >= EClient.MIN_SERVER_VER_MD_SIZE_MULTIPLIER) {
+			contract.mdSizeMultiplier(readInt());
+		}
 		contract.contract().multiplier(readStr());
 		contract.orderTypes(readStr());
 		contract.validExchanges(readStr());
@@ -826,7 +1246,7 @@ class EDecoder implements ObjectInput {
 		if (version >= 7) {
 		    int secIdListCount = readInt();
 		        if (secIdListCount  > 0) {
-		            contract.secIdList(new ArrayList<TagValue>(secIdListCount));
+		            contract.secIdList(new ArrayList<>(secIdListCount));
 		            for (int i = 0; i < secIdListCount; ++i) {
 		                TagValue tagValue = new TagValue();
 		                tagValue.m_tag = readStr();
@@ -835,17 +1255,30 @@ class EDecoder implements ObjectInput {
 		            }
 		        }
 		}
+		if (m_serverVersion >= EClient.MIN_SERVER_VER_AGG_GROUP) {
+			contract.aggGroup(readInt());
+		}
+		if (m_serverVersion >= EClient.MIN_SERVER_VER_UNDERLYING_INFO) {
+			contract.underSymbol(readStr());
+			contract.underSecType(readStr());
+		}
+		if (m_serverVersion >= EClient.MIN_SERVER_VER_MARKET_RULES) {
+			contract.marketRuleIds(readStr());
+		}
+		if (m_serverVersion >= EClient.MIN_SERVER_VER_REAL_EXPIRATION_DATE) {
+			contract.realExpirationDate(readStr());
+		}
 
 		m_EWrapper.contractDetails( reqId, contract);
 	}
 
 	private void processScannerDataMsg() throws IOException {
-		ContractDetails contract = new ContractDetails();
 		int version = readInt();
 		int tickerId = readInt();
 		int numberOfElements = readInt();
 		for (int ctr=0; ctr < numberOfElements; ctr++) {
 		    int rank = readInt();
+		    ContractDetails contract = new ContractDetails();
 		    if (version >= 3) {
 		    	contract.contract().conid(readInt());
 		    }
@@ -873,7 +1306,7 @@ class EDecoder implements ObjectInput {
 	}
 
 	private void processNextValidIdMsg() throws IOException {
-		int version = readInt();
+		/*int version =*/ readInt();
 		int orderId = readInt();
 		m_EWrapper.nextValidId( orderId);
 	}
@@ -1064,7 +1497,7 @@ class EDecoder implements ObjectInput {
 		if (version >= 29) {
 			int comboLegsCount = readInt();
 			if (comboLegsCount > 0) {
-				contract.comboLegs(new ArrayList<ComboLeg>(comboLegsCount));
+				contract.comboLegs(new ArrayList<>(comboLegsCount));
 				for (int i = 0; i < comboLegsCount; ++i) {
 					int conId = readInt();
 					int ratio = readInt();
@@ -1083,7 +1516,7 @@ class EDecoder implements ObjectInput {
 
 			int orderComboLegsCount = readInt();
 			if (orderComboLegsCount > 0) {
-				order.orderComboLegs(new ArrayList<OrderComboLeg>(orderComboLegsCount));
+				order.orderComboLegs(new ArrayList<>(orderComboLegsCount));
 				for (int i = 0; i < orderComboLegsCount; ++i) {
 					double price = readDoubleMax();
 
@@ -1096,7 +1529,7 @@ class EDecoder implements ObjectInput {
 		if (version >= 26) {
 			int smartComboRoutingParamsCount = readInt();
 			if (smartComboRoutingParamsCount > 0) {
-				order.smartComboRoutingParams(new ArrayList<TagValue>(smartComboRoutingParamsCount));
+				order.smartComboRoutingParams(new ArrayList<>(smartComboRoutingParamsCount));
 				for (int i = 0; i < smartComboRoutingParamsCount; ++i) {
 					TagValue tagValue = new TagValue();
 					tagValue.m_tag = readStr();
@@ -1214,12 +1647,8 @@ class EDecoder implements ObjectInput {
 					OrderConditionType orderConditionType = OrderConditionType.fromInt(readInt());				
 					OrderCondition condition = OrderCondition.create(orderConditionType);
 
-					try {
-						condition.readExternal(this);					
-						order.conditions().add(condition);
-					} catch (ClassNotFoundException e) {
-						throw new IOException(e.getCause());
-					}
+					condition.readFrom(this);					
+					order.conditions().add(condition);
 				}
 				
 				order.conditionsIgnoreRth(readBoolFromInt());
@@ -1240,6 +1669,10 @@ class EDecoder implements ObjectInput {
 			order.softDollarTier(new SoftDollarTier(readStr(), readStr(), readStr()));
 		}
 
+		if (m_serverVersion >= EClient.MIN_SERVER_VER_CASH_QTY) {
+			order.cashQty(readDoubleMax());
+		}
+		
 		m_EWrapper.openOrder( order.orderId(), contract, order, orderState);
 	}
 
@@ -1257,7 +1690,7 @@ class EDecoder implements ObjectInput {
 	}
 
 	private void processAcctUpdateTimeMsg() throws IOException {
-		int version = readInt();
+		/*int version =*/ readInt();
 		String timeStamp = readStr();
 		m_EWrapper.updateAccountTime(timeStamp);
 	}
@@ -1285,7 +1718,7 @@ class EDecoder implements ObjectInput {
 		    contract.tradingClass(readStr());
 		}
 
-		double position = m_serverVersion >= EClient.MIN_SERVER_VER_FRACTIONAL_POSITIONS ? readDouble() : readInt();;
+		double position = m_serverVersion >= EClient.MIN_SERVER_VER_FRACTIONAL_POSITIONS ? readDouble() : readInt();
 		double marketPrice = readDouble();
 		double marketValue = readDouble();
 		double  averageCost = 0.0;
@@ -1323,7 +1756,7 @@ class EDecoder implements ObjectInput {
 	}
 
 	private void processOrderStatusMsg() throws IOException {
-		int version = readInt();
+		int version = m_serverVersion >= EClient.MIN_SERVER_VER_MARKET_CAP_PRICE ? Integer.MAX_VALUE : readInt();
 		int id = readInt();
 		String status = readStr();
 		double filled = m_serverVersion >= EClient.MIN_SERVER_VER_FRACTIONAL_POSITIONS ? readDouble() : readInt();
@@ -1354,13 +1787,19 @@ class EDecoder implements ObjectInput {
 		if( version >= 6) {
 			whyHeld = readStr();
 		}
+		
+		double mktCapPrice = Double.MAX_VALUE;
+		
+		if (m_serverVersion >= EClient.MIN_SERVER_VER_MARKET_CAP_PRICE) {
+		    mktCapPrice = readDouble();
+		}
 
 		m_EWrapper.orderStatus( id, status, filled, remaining, avgFillPrice,
-		                permId, parentId, lastFillPrice, clientId, whyHeld);
+		                permId, parentId, lastFillPrice, clientId, whyHeld, mktCapPrice);
 	}
 
 	private void processTickEFPMsg() throws IOException {
-		int version = readInt();
+		/*int version =*/ readInt();
 		int tickerId = readInt();
 		int tickType = readInt();
 		double basisPoints = readDouble();
@@ -1375,7 +1814,7 @@ class EDecoder implements ObjectInput {
 	}
 
 	private void processTickStringMsg() throws IOException {
-		int version = readInt();
+		/*int version =*/ readInt();
 		int tickerId = readInt();
 		int tickType = readInt();
 		String value = readStr();
@@ -1384,7 +1823,7 @@ class EDecoder implements ObjectInput {
 	}
 
 	private void processTickGenericMsg() throws IOException {
-		int version = readInt();
+		/*int version =*/ readInt();
 		int tickerId = readInt();
 		int tickType = readInt();
 		double value = readDouble();
@@ -1392,7 +1831,7 @@ class EDecoder implements ObjectInput {
 		m_EWrapper.tickGeneric( tickerId, tickType, value);
 	}
 
-	private void processTickOptionComputatioMsg() throws IOException {
+	private void processTickOptionComputationMsg() throws IOException {
 		int version = readInt();
 		int tickerId = readInt();
 		int tickType = readInt();
@@ -1410,7 +1849,8 @@ class EDecoder implements ObjectInput {
 		double vega = Double.MAX_VALUE;
 		double theta = Double.MAX_VALUE;
 		double undPrice = Double.MAX_VALUE;
-		if (version >= 6 || tickType == TickType.MODEL_OPTION.index()) { // introduced in version == 5
+		if (version >= 6 || tickType == TickType.MODEL_OPTION.index()
+				|| tickType == TickType.DELAYED_MODEL_OPTION.index()) { // introduced in version == 5
 			optPrice = readDouble();
 			if (optPrice < 0) { // -1 is the "not yet computed" indicator
 				optPrice = Double.MAX_VALUE;
@@ -1443,13 +1883,13 @@ class EDecoder implements ObjectInput {
 	}
 
 	private void processAccountSummaryEndMsg() throws IOException {
-		int version = readInt();
+		/*int version =*/ readInt();
 		int reqId = readInt();
 		m_EWrapper.accountSummaryEnd(reqId);
 	}
 
 	private void processAccountSummaryMsg() throws IOException {
-		int version = readInt();
+		/*int version =*/ readInt();
 		int reqId = readInt();
 		String account = readStr();
 		String tag = readStr();
@@ -1459,7 +1899,7 @@ class EDecoder implements ObjectInput {
 	}
 
 	private void processPositionEndMsg() throws IOException {
-		int version = readInt();
+		/*int version =*/ readInt();
 		m_EWrapper.positionEnd();
 	}
 
@@ -1492,7 +1932,7 @@ class EDecoder implements ObjectInput {
 	}
 
 	private void processTickSizeMsg() throws IOException {
-		int version = readInt();
+		/*int version =*/ readInt();
 		int tickerId = readInt();
 		int tickType = readInt();
 		int size = readInt();
@@ -1506,17 +1946,33 @@ class EDecoder implements ObjectInput {
 		int tickType = readInt();
 		double price = readDouble();
 		int size = 0;
+		TickAttr attribs = new TickAttr();
+		
 		if( version >= 2) {
 		    size = readInt();
 		}
-		int canAutoExecute = 0;
-		if (version >= 3) {
-		    canAutoExecute = readInt();
+		
+		if (version >= 3) {		
+			int attrMask = readInt();			
+
+			attribs.canAutoExecute(attrMask == 1);
+			
+			if (m_serverVersion >= EClient.MIN_SERVER_VER_PAST_LIMIT) {
+				BitMask mask = new BitMask(attrMask);
+				
+				attribs.canAutoExecute(mask.get(0));
+				attribs.pastLimit(mask.get(1));
+				if (m_serverVersion >= EClient.MIN_SERVER_VER_PRE_OPEN_BID_ASK) {
+					attribs.preOpen(mask.get(2));
+				}
+			}
 		}
-		m_EWrapper.tickPrice( tickerId, tickType, price, canAutoExecute);
+
+		
+		m_EWrapper.tickPrice( tickerId, tickType, price, attribs);
 
 		if( version >= 2) {
-		    int sizeTickType = -1 ; // not a tick
+		    final int sizeTickType;
 		    switch (tickType) {
 		        case 1: // BID
 		            sizeTickType = 0 ; // BID_SIZE
@@ -1527,6 +1983,17 @@ class EDecoder implements ObjectInput {
 		        case 4: // LAST
 		            sizeTickType = 5 ; // LAST_SIZE
 		            break ;
+		        case 66: // DELAYED_BID
+		            sizeTickType = 69 ; // DELAYED_BID_SIZE
+		            break ;
+		        case 67: // DELAYED_ASK
+		            sizeTickType = 70 ; // DELAYED_ASK_SIZE
+		            break ;
+		        case 68: // DELAYED_LAST
+		            sizeTickType = 71 ; // DELAYED_LAST_SIZE
+		            break ;
+                default:
+                    sizeTickType = -1; // not a tick
 		    }
 		    if (sizeTickType != -1) {
 		        m_EWrapper.tickSize( tickerId, sizeTickType, size);
@@ -1535,7 +2002,7 @@ class EDecoder implements ObjectInput {
 	}
     
     private void processPositionMultiMsg() throws IOException {
-        int version = readInt();
+        /*int version =*/ readInt();
         int reqId = readInt();
         String account = readStr();
 
@@ -1559,14 +2026,14 @@ class EDecoder implements ObjectInput {
     }
 
     private void processPositionMultiEndMsg() throws IOException {
-        int version = readInt();
+        /*int version =*/ readInt();
         int reqId = readInt();
 
         m_EWrapper.positionMultiEnd( reqId);
     }
 
     private void processAccountUpdateMultiMsg() throws IOException {
-        int version = readInt();
+        /*int version =*/ readInt();
         int reqId = readInt();
         String account = readStr();
         String modelCode = readStr();
@@ -1578,19 +2045,84 @@ class EDecoder implements ObjectInput {
     }
 
     private void processAccountUpdateMultiEndMsg() throws IOException {
-        int version = readInt();
+        /*int version =*/ readInt();
         int reqId = readInt();
 
         m_EWrapper.accountUpdateMultiEnd( reqId);
+    }  
+    
+    private void processSmartComponentsMsg() throws IOException {
+    	int reqId = readInt();
+    	int n = readInt();    	
+    	Map<Integer, Entry<String, Character>> theMap = new HashMap<>();
+    	
+    	for (int i = 0; i < n; i++) {
+    		int bitNumber = readInt();
+    		String exchange = readStr();
+    		char exchangeLetter = readChar();
+    		
+    		theMap.put(bitNumber, new SimpleEntry<>(exchange, exchangeLetter));
     }
     
-    protected String readStr() throws IOException {
+    	m_EWrapper.smartComponents(reqId, theMap);
+    }
+    
+    private void processTickReqParamsMsg() throws IOException {
+    	int tickerId = readInt();
+    	double minTick = readDouble();
+    	String bboExchange = readStr();
+    	int snapshotPermissions = readInt();
+    	
+    	m_EWrapper.tickReqParams(tickerId, minTick, bboExchange, snapshotPermissions);
+    }
+    
+    private void processTickByTickMsg() throws IOException {
+        int reqId = readInt();
+        int tickType = readInt();
+        long time = readLong();
+
+        BitMask mask;
+        TickAttr attribs;
+        switch(tickType){
+            case 0: // None
+                break;
+            case 1: // Last
+            case 2: // AllLast
+                double price = readDouble();
+                int size = readInt();
+                mask = new BitMask(readInt());
+                attribs = new TickAttr();
+                attribs.pastLimit(mask.get(0));
+                attribs.unreported(mask.get(1));
+                String exchange = readStr();
+                String specialConditions = readStr();
+                m_EWrapper.tickByTickAllLast(reqId, tickType, time, price, size, attribs, exchange, specialConditions);
+                break;
+            case 3: // BidAsk
+                double bidPrice = readDouble();
+                double askPrice = readDouble();
+                int bidSize = readInt();
+                int askSize = readInt();
+                mask = new BitMask(readInt());
+                attribs = new TickAttr();
+                attribs.bidPastLow(mask.get(0));
+                attribs.askPastHigh(mask.get(1));
+                m_EWrapper.tickByTickBidAsk(reqId, time, bidPrice, askPrice, bidSize, askSize, attribs);
+                break;
+            case 4: // MidPoint
+                double midPoint = readDouble();
+                m_EWrapper.tickByTickMidPoint(reqId, time, midPoint);
+                break;
+        }
+    }
+    
+    private String readStr() throws IOException {
     	return m_messageReader.readStr();
     }
 
-    boolean readBoolFromInt() throws IOException {
+    private boolean readBoolFromInt() throws IOException {
         String str = readStr();
-        return str == null ? false : (Integer.parseInt( str) != 0);
+        return str != null && (Integer.parseInt(str) != 0);
     }
 
     public int readInt() throws IOException {
@@ -1598,7 +2130,7 @@ class EDecoder implements ObjectInput {
         return str == null ? 0 : Integer.parseInt( str);
     }
 
-    protected int readIntMax() throws IOException {
+    private int readIntMax() throws IOException {
         String str = readStr();
         return (str == null || str.length() == 0) ? Integer.MAX_VALUE
         	                                      : Integer.parseInt( str);
@@ -1606,7 +2138,7 @@ class EDecoder implements ObjectInput {
 
     public long readLong() throws IOException {
         String str = readStr();
-        return str == null ? 0l : Long.parseLong(str);
+        return str == null ? 0L : Long.parseLong(str);
     }
 
     public double readDouble() throws IOException {
@@ -1614,7 +2146,7 @@ class EDecoder implements ObjectInput {
         return str == null ? 0 : Double.parseDouble( str);
     }
 
-    protected double readDoubleMax() throws IOException {
+    private double readDoubleMax() throws IOException {
         String str = readStr();
         return (str == null || str.length() == 0) ? Double.MAX_VALUE
         	                                      : Double.parseDouble( str);
@@ -1622,15 +2154,15 @@ class EDecoder implements ObjectInput {
 
     /** Message reader interface */
     private interface IMessageReader extends Closeable {
-    	public abstract String readStr() throws IOException;
-    	public abstract int msgLength();
+    	String readStr() throws IOException;
+    	int msgLength();
     }
 
     private static class PreV100MessageReader implements IMessageReader {
     	private final InputStream m_din;
     	private int m_msgLength = 0;
     	
-    	public PreV100MessageReader( InputStream din ) {
+    	PreV100MessageReader( InputStream din ) {
     		m_din = din;
     	}
     	
@@ -1640,7 +2172,7 @@ class EDecoder implements ObjectInput {
     	}
     	
     	@Override public String readStr() throws IOException {
-    		 StringBuffer buf = new StringBuffer();
+    		 StringBuilder sb = new StringBuilder();
     		    		 
  	         for(; true; m_msgLength++) {
  	            int c = m_din.read();
@@ -1652,15 +2184,15 @@ class EDecoder implements ObjectInput {
  	            	m_msgLength++;
  	                break;
  	            }
- 	            buf.append( (char)c);
+ 	            sb.append( (char)c);
  	        }
  	
- 	        String str = buf.toString();
+ 	        String str = sb.toString();
  	        return str.length() == 0 ? null : str;    
  	    }
     	
     	@Override public void close() {
-    	    /** noop in pre-v100 */
+    	    /* noop in pre-v100 */
     	}
     }
 
@@ -1692,7 +2224,7 @@ class EDecoder implements ObjectInput {
 	public float readFloat() throws IOException { throw new UnsupportedOperationException(); }
 	
 	@Override
-	public char readChar() throws IOException { throw new UnsupportedOperationException(); }
+	public char readChar() throws IOException { return readStr().charAt(0); }
 	
 	@Override
 	public byte readByte() throws IOException { throw new UnsupportedOperationException(); }
@@ -1716,7 +2248,7 @@ class EDecoder implements ObjectInput {
 	public int read() throws IOException { throw new UnsupportedOperationException(); }
 	
 	@Override
-	public void close() throws IOException { throw new UnsupportedOperationException(); }
+	public void close() throws IOException { m_messageReader.close(); }
 	
 	@Override
 	public int available() throws IOException { throw new UnsupportedOperationException(); }

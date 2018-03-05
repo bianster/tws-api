@@ -1,4 +1,4 @@
-/* Copyright (C) 2013 Interactive Brokers LLC. All rights reserved.  This code is subject to the terms
+/* Copyright (C) 2017 Interactive Brokers LLC. All rights reserved.  This code is subject to the terms
  * and conditions of the IB API Non-Commercial License or the IB API Commercial License, as applicable. */
 
 package apidemo;
@@ -10,8 +10,8 @@ import java.awt.BorderLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
+import java.util.List;
 
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -27,6 +27,8 @@ import javax.swing.table.AbstractTableModel;
 
 import com.ib.client.Contract;
 import com.ib.client.ContractDetails;
+import com.ib.client.MarketDataType;
+import com.ib.client.TickAttr;
 import com.ib.client.TickType;
 import com.ib.client.Types.Right;
 import com.ib.client.Types.SecType;
@@ -42,56 +44,61 @@ import apidemo.util.UpperField;
 import apidemo.util.Util;
 import apidemo.util.VerticalPanel;
 
-public class OptionChainsPanel extends JPanel {
+class OptionChainsPanel extends JPanel {
 	private Contract m_underContract = new Contract();
 	private NewTabbedPanel m_tabbedPanel = new NewTabbedPanel();
 	private JTextField m_optExch = new UpperField();
 	private UpperField m_symbol = new UpperField();
-	private TCombo<SecType> m_secType = new TCombo<SecType>( SecType.values() );
+	private TCombo<SecType> m_secType = new TCombo<>( SecType.values() );
+	private UpperField m_lastTradeDateOrContractMonth = new UpperField();
 	private UpperField m_exchange = new UpperField();
 	private UpperField m_currency = new UpperField();
 	private JCheckBox m_snapshot = new JCheckBox();
+	private TCombo<String> m_marketDataType = new TCombo<>( MarketDataType.getFields() );
 
 	OptionChainsPanel() {
-		m_symbol.setText( "IBM");
+		m_symbol.setText( "IBKR");
 		m_secType.setSelectedItem( SecType.STK);
 		m_exchange.setText( "SMART"); 
+		m_lastTradeDateOrContractMonth.setText("20170616");
 		m_currency.setText( "USD");
 		m_optExch.setText( "SMART");
-		
+		m_marketDataType.setSelectedItem( MarketDataType.REALTIME);
+
 		HtmlButton button = new HtmlButton( "Go") {
 			@Override protected void actionPerformed() {
 				onAdd();
 			}
 		};
+
+		m_marketDataType.addActionListener(event ->
+				ApiDemo.INSTANCE.controller().reqMktDataType( MarketDataType.getField(m_marketDataType.getSelectedItem())));
 		
 		VerticalPanel topPanel = new VerticalPanel();
 		topPanel.add( "Symbol", m_symbol);
-    	topPanel.add( "Currency", m_currency);
-    	topPanel.add( "Underlying sec type", m_secType);
-    	topPanel.add( "Underlying exchange", m_exchange, Box.createHorizontalStrut(20), button);
+		topPanel.add( "Currency", m_currency);
+		topPanel.add( "Underlying sec type", m_secType);
+		topPanel.add( "Underlying exchange", m_exchange, Box.createHorizontalStrut(30), button);
+		topPanel.add( "Last trade date or contract month", m_lastTradeDateOrContractMonth);
 		topPanel.add( "Option exchange", m_optExch);
 		topPanel.add( "Use snapshot data", m_snapshot);
+		topPanel.add( "Market data type", m_marketDataType);
 		
 		setLayout( new BorderLayout() );
 		add( topPanel, BorderLayout.NORTH);
 		add( m_tabbedPanel);
 	}
 
-	protected void onAdd() {
+	void onAdd() {
 		m_underContract.symbol( m_symbol.getText().toUpperCase() ); 
 		m_underContract.secType( m_secType.getSelectedItem() ); 
 		m_underContract.exchange( m_exchange.getText().toUpperCase() ); 
 		m_underContract.currency( m_currency.getText().toUpperCase() ); 
 
-		ApiDemo.INSTANCE.controller().reqContractDetails( m_underContract, new IContractDetailsHandler() {
-			@Override public void contractDetails(ArrayList<ContractDetails> list) {
-				onRecUnderDetails( list);
-			}
-		});
+		ApiDemo.INSTANCE.controller().reqContractDetails( m_underContract, this::onRecUnderDetails);
 	}
 
-	protected void onRecUnderDetails(ArrayList<ContractDetails> list) {
+	void onRecUnderDetails(List<ContractDetails> list) {
 		if (list.size() != 1) {
 			ApiDemo.INSTANCE.show( "Error: " + list.size() + " underlying contracts returned");
 			return;
@@ -100,6 +107,7 @@ public class OptionChainsPanel extends JPanel {
 		// request option chains
 		Contract optContract = new Contract();
 		optContract.symbol( m_underContract.symbol() );
+		optContract.lastTradeDateOrContractMonth( m_lastTradeDateOrContractMonth.getText() );
 		optContract.currency( m_underContract.currency() );
 		optContract.exchange( m_optExch.getText() );
 		optContract.secType( SecType.OPT);
@@ -117,9 +125,9 @@ public class OptionChainsPanel extends JPanel {
 		JTable m_callsTable = new JTable( m_callsModel);
 		Timer m_timer = new Timer( 800, this);
 	    JLabel m_labUnderPrice = new JLabel();
-	    TopMktDataAdapter m_stockListener = new TopMktDataAdapter() {
-            @Override public void tickPrice(TickType tickType, double price, int canAutoExecute) {
-                if (tickType == TickType.LAST) {
+	    transient TopMktDataAdapter m_stockListener = new TopMktDataAdapter() {
+            @Override public void tickPrice(TickType tickType, double price, TickAttr attribs) {
+                if (tickType == TickType.LAST || tickType == TickType.DELAYED_LAST) {
                     m_labUnderPrice.setText( "" + price);
                 }
             }
@@ -146,7 +154,7 @@ public class OptionChainsPanel extends JPanel {
 			
 			m_timer.start();
 			
-			ApiDemo.INSTANCE.controller().reqTopMktData( m_underContract, "", false, m_stockListener);
+			ApiDemo.INSTANCE.controller().reqTopMktData( m_underContract, "", false, false, m_stockListener);
 		}
 		
 		/** Called when the tab is first visited. */
@@ -166,7 +174,7 @@ public class OptionChainsPanel extends JPanel {
 			m_callsModel.fireTableDataChanged();
 		}
 		
-		@Override public void contractDetails(ArrayList<ContractDetails> list) {
+		@Override public void contractDetails(List<ContractDetails> list) {
 			for (ContractDetails data : list) {
 				Contract contract = data.contract();
 				
@@ -182,24 +190,17 @@ public class OptionChainsPanel extends JPanel {
 		}
 		
 		private class ChainModel extends AbstractTableModel {
-			Comparator<ChainRow> c = new Comparator<ChainRow>() {
-				@Override public int compare(ChainRow o1, ChainRow o2) {
-					int rc = o1.m_c.lastTradeDateOrContractMonth().compareTo( o2.m_c.lastTradeDateOrContractMonth());
-					if (rc == 0) {
-						if (o1.m_c.strike() < o2.m_c.strike()) {
-							rc = -1;
-						}
-						if (o1.m_c.strike() > o2.m_c.strike()) {
-							rc = 1;
-						}
-					}
-					return rc;
-				}
-			};
+			Comparator<ChainRow> c = (o1, o2) -> {
+                int rc = o1.m_c.lastTradeDateOrContractMonth().compareTo( o2.m_c.lastTradeDateOrContractMonth());
+                if (rc == 0) {
+                    rc = Double.compare(o1.m_c.strike(), o2.m_c.strike());
+                }
+                return rc;
+            };
 			
-			ArrayList<ChainRow> m_list = new ArrayList<ChainRow>();
+			List<ChainRow> m_list = new ArrayList<>();
 			
-            public void desubscribe() {
+            void desubscribe() {
                 for (ChainRow row : m_list) {
                     ApiDemo.INSTANCE.controller().cancelOptionMktData( row);
                 }
@@ -209,16 +210,16 @@ public class OptionChainsPanel extends JPanel {
 				return m_list.size();
 			}
 
-			public void sort() {
-				Collections.sort( m_list, c);
+			void sort() {
+				m_list.sort(c);
 				fireTableDataChanged();
 			}
 
-			public void addRow(Contract contract, boolean snapshot) {
+			void addRow(Contract contract, boolean snapshot) {
 				ChainRow row = new ChainRow( contract);
 				m_list.add( row);
 				
-				ApiDemo.INSTANCE.controller().reqOptionMktData(contract, "", snapshot, row);
+				ApiDemo.INSTANCE.controller().reqOptionMktData(contract, "", snapshot, false, row);
 				
 				if (snapshot) {
 					Util.sleep( 11); // try to avoid pacing violation at TWS
@@ -272,16 +273,18 @@ public class OptionChainsPanel extends JPanel {
 				double m_theta;
 				boolean m_done;
 		
-				public ChainRow(Contract contract) {
+				ChainRow(Contract contract) {
 					m_c = contract;
 				}
 		
-				@Override public void tickPrice(TickType tickType, double price, int canAutoExecute) {
+				@Override public void tickPrice(TickType tickType, double price, TickAttr attribs) {
 					switch( tickType) {
 						case BID:
+						case DELAYED_BID:
 							m_bid = price;
 							break;
 						case ASK:
+						case DELAYED_ASK:
 							m_ask = price;
 							break;
 		                default: break; 
@@ -289,7 +292,7 @@ public class OptionChainsPanel extends JPanel {
 				}
 		
 				@Override public void tickOptionComputation( TickType tickType, double impVol, double delta, double optPrice, double pvDividend, double gamma, double vega, double theta, double undPrice) {
-					if (tickType == TickType.MODEL_OPTION) {
+					if (tickType == TickType.MODEL_OPTION || tickType == TickType.DELAYED_MODEL_OPTION) {
 						m_impVol = impVol;
 						m_delta = delta;
 						m_gamma = gamma;

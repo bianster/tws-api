@@ -1,4 +1,4 @@
-/* Copyright (C) 2013 Interactive Brokers LLC. All rights reserved.  This code is subject to the terms
+/* Copyright (C) 2017 Interactive Brokers LLC. All rights reserved.  This code is subject to the terms
  * and conditions of the IB API Non-Commercial License or the IB API Commercial License, as applicable. */
 
 package apidemo.util;
@@ -11,20 +11,14 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Graphics;
 import java.awt.Insets;
-import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseEvent;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Map.Entry;
 
-import javax.swing.Icon;
-import javax.swing.JComponent;
-import javax.swing.JFrame;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.JScrollPane;
-import javax.swing.SwingConstants;
+import javax.swing.*;
 import javax.swing.border.Border;
 
 
@@ -42,7 +36,7 @@ public class NewTabbedPanel extends JPanel {
 	private final JPanel m_topPanel = new JPanel();
 	private final CardLayout m_cardLayout = new CardLayout();
 	private final JPanel m_cardPanel = new JPanel( m_cardLayout);
-	private final HashMap<String,Tab> m_map = new HashMap<String,Tab>();
+	private final Map<String, Tab> m_map = new HashMap<>();
 	private final boolean m_underline;  // if true, draws a horizontal line all the way across
 	private int m_count = 2;
 	
@@ -68,11 +62,7 @@ public class NewTabbedPanel extends JPanel {
 		final String title = m_map.containsKey( titleIn)
 			? titleIn + " " + m_count++ : titleIn;
 		
-		HtmlButton button = new But( title, canClose, new ActionListener() {
-			@Override public void actionPerformed(ActionEvent e) {
-				select( title);
-			}
-		});
+		HtmlButton button = new But( title, canClose, e -> select( title));
 		
 		Tab tab = new Tab( title, comp, button);
 		m_map.put( title, tab);
@@ -140,7 +130,7 @@ public class NewTabbedPanel extends JPanel {
 		HtmlButton m_button;
 		boolean m_activated;
 
-		public Tab(String title, JComponent comp, HtmlButton button) {
+		Tab(String title, JComponent comp, HtmlButton button) {
 			m_title = title;
 			m_comp = comp;
 			m_button = button;
@@ -221,7 +211,7 @@ public class NewTabbedPanel extends JPanel {
 	class But extends HtmlButton {
 		boolean m_canClose;
 		
-		public But(String text, boolean canClose, ActionListener v) {
+		But(String text, boolean canClose, ActionListener v) {
 			super(text, v);
 			m_canClose = canClose;
 			setHorizontalAlignment(SwingConstants.CENTER);
@@ -288,8 +278,9 @@ public class NewTabbedPanel extends JPanel {
 		}
 	}
 
-	public void onClosed() {
+	void onClosed() {
 		Tab tab = getSelectedTab();
+		if (tab == null) return;
 		if (tab.m_comp instanceof INewTab) {
 			((INewTab)tab.m_comp).closed();
 		}
@@ -316,7 +307,7 @@ public class NewTabbedPanel extends JPanel {
         f.add( p);
         f.setSize( 200, 200);
         f.setVisible( true);
-        f.setDefaultCloseOperation( JFrame.EXIT_ON_CLOSE);
+        f.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
     }
 	
 }

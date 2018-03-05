@@ -59,12 +59,12 @@ public class OrderState {
 
 	@Override
     public boolean equals(Object other) {
-        if (this == other)
+        if (this == other) {
             return true;
-
-        if (other == null)
+        }
+        if (!(other instanceof OrderState)) {
             return false;
-
+        }
         OrderState state = (OrderState)other;
 
         if (m_commission != state.m_commission ||
@@ -82,4 +82,18 @@ public class OrderState {
         }
         return true;
 	}
+
+    @Override
+    public int hashCode() {
+        // Use a few fields as a compromise between performance and hashCode quality.
+        int result;
+        long temp;
+        temp = Double.doubleToLongBits(m_commission);
+        result = (int) (temp ^ (temp >>> 32));
+        temp = Double.doubleToLongBits(m_minCommission);
+        result = 31 * result + (int) (temp ^ (temp >>> 32));
+        temp = Double.doubleToLongBits(m_maxCommission);
+        result = 31 * result + (int) (temp ^ (temp >>> 32));
+        return result;
+    }
 }

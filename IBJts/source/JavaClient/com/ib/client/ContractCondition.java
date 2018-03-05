@@ -3,7 +3,7 @@ package com.ib.client;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
-import java.util.ArrayList;
+import java.util.List;
 
 public abstract class ContractCondition extends OperatorCondition {
 
@@ -18,8 +18,8 @@ public abstract class ContractCondition extends OperatorCondition {
 		c.conid(conId());
 		c.exchange(exchange());
 		
-		ArrayList<ContractDetails> list = lookuper.lookupContract(c);		
-		String strContract = list.size() > 0 ? 
+		List<ContractDetails> list = lookuper == null ? null : lookuper.lookupContract(c);		
+		String strContract = list != null && !list.isEmpty() ? 
 				list.get(0).contract().symbol() + " " + list.get(0).contract().secType() + " on " + list.get(0).contract().exchange() :
 				conId() + "";
 		
@@ -30,17 +30,16 @@ public abstract class ContractCondition extends OperatorCondition {
 	private String m_exchange;
 
 	@Override
-	public void readExternal(ObjectInput in) throws IOException,
-			ClassNotFoundException {
-		super.readExternal(in);
+	public void readFrom(ObjectInput in) throws IOException {
+		super.readFrom(in);
 		
 		m_conId = in.readInt();
 		m_exchange = in.readUTF();
 	}
 
 	@Override
-	public void writeExternal(ObjectOutput out) throws IOException {
-		super.writeExternal(out);
+	public void writeTo(ObjectOutput out) throws IOException {
+		super.writeTo(out);
 		out.writeInt(m_conId);
 		out.writeUTF(m_exchange);
 	}

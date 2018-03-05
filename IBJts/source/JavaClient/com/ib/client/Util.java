@@ -1,9 +1,14 @@
-/* Copyright (C) 2013 Interactive Brokers LLC. All rights reserved.  This code is subject to the terms
+/* Copyright (C) 2017 Interactive Brokers LLC. All rights reserved.  This code is subject to the terms
  * and conditions of the IB API Non-Commercial License or the IB API Commercial License, as applicable. */
 
 package com.ib.client;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 import com.ib.controller.ApiController;
 import com.ib.controller.ApiController.IContractDetailsHandler;
@@ -25,7 +30,7 @@ public class Util {
     	return NormalizeString(lhs).compareToIgnoreCase(NormalizeString(rhs));
     }
 
-    public static boolean ArrayEqualsUnordered(ArrayList<?> lhs, ArrayList<?> rhs) {
+    public static boolean listsEqualUnordered(List<?> lhs, List<?> rhs) {
     	if (lhs == rhs)
     		return true;
 
@@ -68,42 +73,42 @@ public class Util {
     	return (value == Double.MAX_VALUE) ? "" : String.valueOf(value);
     }
     
+    public static String UnixMillisecondsToString(long milliseconds, String dateFormat){
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat(dateFormat);
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTimeInMillis(milliseconds);
+        return simpleDateFormat.format(calendar.getTime());
+    }
     
+    public static String UnixSecondsToString(long seconds, String dateFormat){
+        return UnixMillisecondsToString(seconds * 1000, dateFormat);
+    }
     
-	public static ArrayList<ContractDetails> lookupContract(ApiController controller, Contract contract) {
-		final ArrayList<ContractDetails> rval = new ArrayList<ContractDetails>();
-		final boolean[] isReady = new boolean[1];
-		final Object sync = new Object();
-		
-		if (controller == null)
-			return rval;
-		
-		isReady[0] = false;
+	public static List<ContractDetails> lookupContract(ApiController controller, Contract contract) {
+		if (controller == null) {
+			return new ArrayList<>();
+		}
+		final CompletableFuture<List<ContractDetails>> future = new CompletableFuture<>();
 				
 		controller.reqContractDetails(contract, new IContractDetailsHandler() {
 
+			private final List<ContractDetails> contractDetails = new ArrayList<>();
+
 			@Override
-			public void contractDetails(ArrayList<ContractDetails> list) {
-				rval.addAll(list);
-				
-				synchronized (sync) {
-					isReady[0] = true;
-					sync.notify();
-				}
+			public void contractDetails(List<ContractDetails> list) {
+				contractDetails.addAll(list);
+				future.complete(contractDetails);
 			}
 		});
-		
-		synchronized (sync) {
-			try {
-				while (!isReady[0]) {
-					sync.wait();
-				}
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+		try {
+			return future.get();
+		} catch (final InterruptedException e) {
+			e.printStackTrace();
+			Thread.currentThread().interrupt();
+			return new ArrayList<>();
+		} catch (final ExecutionException e) {
+			e.printStackTrace();
+			return new ArrayList<>();
 		}
-		
-		return rval;
 	}
 }

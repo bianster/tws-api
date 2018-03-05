@@ -209,6 +209,23 @@ public class OrderSamples {
 		return order;
 	}
 	
+	// Forex orders can be placed in denomination of second currency in pair using cashQty field
+	// Requires TWS or IBG 963+
+	// https://www.interactivebrokers.com/en/index.php?f=23876#963-02
+	
+	public static Order LimitOrderWithCashQty(String action, double quantity, double limitPrice, double cashQty) {
+		// ! [limitorderwithcashqty]
+		Order order = new Order();
+		order.action(action);
+		order.orderType("LMT");
+		order.totalQuantity(quantity);
+		order.lmtPrice(limitPrice);
+		order.cashQty(cashQty);
+		// ! [limitorderwithcashqty]
+		return order;
+	}
+	
+	
 	public static Order LimitIfTouched(String action, double quantity, double limitPrice, double triggerPrice) {
 		// ! [limitiftouched]
 		Order order = new Order();
@@ -255,13 +272,14 @@ public class OrderSamples {
 		return order;
 	}
 	
-	public static Order PeggedToMidpoint(String action, double quantity, double offset) {
+	public static Order PeggedToMidpoint(String action, double quantity, double offset, double limitPrice) {
 		// ! [pegged_midpoint]
 		Order order = new Order();
 		order.action(action);
 		order.orderType("PEG MID");
 		order.totalQuantity(quantity);
 		order.auxPrice(offset);
+		order.lmtPrice(limitPrice);
 		// ! [pegged_midpoint]
 		return order;
 	}
@@ -300,7 +318,7 @@ public class OrderSamples {
         //to activate all its predecessors
 		stopLoss.transmit(true);
 		
-		List<Order> bracketOrder = new ArrayList<Order>();
+		List<Order> bracketOrder = new ArrayList<>();
 		bracketOrder.add(parent);
 		bracketOrder.add(takeProfit);
 		bracketOrder.add(stopLoss);
@@ -375,12 +393,12 @@ public class OrderSamples {
 		return order;
 	}
 	
-	public static Order TrailingStopLimit(String action, double quantity, double trailingAmount, double trailStopPrice, double limitPrice) {
+	public static Order TrailingStopLimit(String action, double quantity, double lmtPriceOffset, double trailingAmount, double trailStopPrice) {
 		// ! [trailingstoplimit]
 		Order order = new Order();
 		order.action(action);
 		order.orderType("TRAIL LIMIT");
-		order.lmtPrice(limitPrice);
+		order.lmtPriceOffset(lmtPriceOffset);
 		order.auxPrice(trailingAmount);
 		order.trailStopPrice(trailStopPrice);
 		order.totalQuantity(quantity);
@@ -397,7 +415,7 @@ public class OrderSamples {
 		order.totalQuantity(quantity);
 		if (nonGuaranteed)
 		{
-			List<TagValue> smartComboRoutingParams = new ArrayList<TagValue>();
+			List<TagValue> smartComboRoutingParams = new ArrayList<>();
 			smartComboRoutingParams.add(new TagValue("NonGuaranteed", "1"));
 		}
 		// ! [combolimit]
@@ -412,7 +430,7 @@ public class OrderSamples {
 		order.totalQuantity(quantity);
 		if (nonGuaranteed)
 		{
-			List<TagValue> smartComboRoutingParams = new ArrayList<TagValue>();
+			List<TagValue> smartComboRoutingParams = new ArrayList<>();
 			smartComboRoutingParams.add(new TagValue("NonGuaranteed", "1"));
 		}
 		// ! [combomarket]
@@ -425,7 +443,7 @@ public class OrderSamples {
 		order.action(action);
 		order.orderType("LMT");
 		order.totalQuantity(quantity);
-		order.orderComboLegs(new ArrayList<OrderComboLeg>());
+		order.orderComboLegs(new ArrayList<>());
 		
 		for(double price : legPrices) {
 			OrderComboLeg comboLeg = new OrderComboLeg();
@@ -435,7 +453,7 @@ public class OrderSamples {
 		
 		if (nonGuaranteed)
 		{
-			List<TagValue> smartComboRoutingParams = new ArrayList<TagValue>();
+			List<TagValue> smartComboRoutingParams = new ArrayList<>();
 			smartComboRoutingParams.add(new TagValue("NonGuaranteed", "1"));
 		}
 		// ! [limitordercombolegprices]
@@ -451,7 +469,7 @@ public class OrderSamples {
 		order.lmtPrice(limitPrice);
 		if (nonGuaranteed)
 		{
-			List<TagValue> smartComboRoutingParams = new ArrayList<TagValue>();
+			List<TagValue> smartComboRoutingParams = new ArrayList<>();
 			smartComboRoutingParams.add(new TagValue("NonGuaranteed", "1"));
 		}
 		// ! [relativelimitcombo]
@@ -466,7 +484,7 @@ public class OrderSamples {
 		order.totalQuantity(quantity);
 		if (nonGuaranteed)
 		{
-			List<TagValue> smartComboRoutingParams = new ArrayList<TagValue>();
+			List<TagValue> smartComboRoutingParams = new ArrayList<>();
 			smartComboRoutingParams.add(new TagValue("NonGuaranteed", "1"));
 		}
 		// ! [relativemarketcombo]
@@ -540,7 +558,7 @@ public class OrderSamples {
         //! [adjustable_stop]
         Order order = new Order();
         //Attached order is a conventional STP order in opposite direction
-        order.action(parent.action().equals("BUY") ? "SELL" : "BUY");
+        order.action("BUY".equals(parent.getAction()) ? "SELL" : "BUY");
         order.totalQuantity(parent.totalQuantity());
         order.auxPrice(attachedOrderStopPrice);
         order.parentId(parent.orderId());
@@ -558,7 +576,7 @@ public class OrderSamples {
     	//! [adjustable_stop_limit]
         Order order = new Order();
         //Attached order is a conventional STP order
-        order.action(parent.action().equals("BUY") ? "SELL" : "BUY");
+        order.action("BUY".equals(parent.getAction()) ? "SELL" : "BUY");
         order.totalQuantity(parent.totalQuantity());
         order.auxPrice(attachedOrderStopPrice);
         order.parentId(parent.orderId());
@@ -571,6 +589,28 @@ public class OrderSamples {
         //And the given limit price
         order.adjustedStopLimitPrice(adjustedStopLimitPrice);
         //! [adjustable_stop_limit]
+        return order;
+    }
+	
+	public static Order AttachAdjustableToTrail(Order parent, double attachedOrderStopPrice, double triggerPrice, double adjustStopPrice, double adjustedTrailAmount, int trailUnit) {
+    	//! [adjustable_trail]
+        Order order = new Order();
+        //Attached order is a conventional STP order
+        order.action("BUY".equals(parent.getAction()) ? "SELL" : "BUY");
+        order.totalQuantity(parent.totalQuantity());
+        order.auxPrice(attachedOrderStopPrice);
+        order.parentId(parent.orderId());
+        //When trigger price is penetrated
+        order.triggerPrice(triggerPrice);
+        //The parent order will be turned into a TRAIL order
+        order.adjustedOrderType(OrderType.TRAIL);
+        //With a stop price of...
+        order.adjustedStopPrice(adjustStopPrice);
+        //trailing by and amount (0) or a percent (1)...
+        order.adjustableTrailingUnit(trailUnit);
+        //of...
+        order.adjustedTrailingAmount(adjustedTrailAmount);
+        //! [adjustable_trail]
         return order;
     }
     

@@ -1,11 +1,13 @@
-/* Copyright (C) 2013 Interactive Brokers LLC. All rights reserved.  This code is subject to the terms
+/* Copyright (C) 2017 Interactive Brokers LLC. All rights reserved.  This code is subject to the terms
  * and conditions of the IB API Non-Commercial License or the IB API Commercial License, as applicable. */
 
 package com.ib.client;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import com.ib.client.Types.SecType;
 
@@ -24,7 +26,7 @@ public abstract class EClient {
     //      Added FA support - reqExecution has filter.
     //                       - reqAccountUpdates takes acct code.
     // 11 = Added permId to openOrder event.
-    // 12 = requsting open order attributes ignoreRth, hidden, and discretionary
+    // 12 = requesting open order attributes ignoreRth, hidden, and discretionary
     // 13 = added goodAfterTime
     // 14 = always send size on bid/ask/last tick
     // 15 = send allocation description string on openOrder
@@ -173,7 +175,25 @@ public abstract class EClient {
     private static final int CANCEL_ACCOUNT_UPDATES_MULTI = 77;
     private static final int REQ_SEC_DEF_OPT_PARAMS     = 78;
     private static final int REQ_SOFT_DOLLAR_TIERS     = 79;
-    
+    private static final int REQ_FAMILY_CODES = 80;
+    private static final int REQ_MATCHING_SYMBOLS = 81;
+    private static final int REQ_MKT_DEPTH_EXCHANGES = 82;
+    private static final int REQ_SMART_COMPONENTS = 83;
+    private static final int REQ_NEWS_ARTICLE = 84;
+    private static final int REQ_NEWS_PROVIDERS = 85;
+    private static final int REQ_HISTORICAL_NEWS = 86;
+  	private static final int REQ_HEAD_TIMESTAMP = 87;
+  	private static final int REQ_HISTOGRAM_DATA = 88;
+    private static final int CANCEL_HISTOGRAM_DATA = 89;
+    private static final int CANCEL_HEAD_TIMESTAMP = 90;
+    private static final int REQ_MARKET_RULE = 91;
+    private static final int REQ_PNL = 92;
+    private static final int CANCEL_PNL = 93;
+    private static final int REQ_PNL_SINGLE = 94;
+    private static final int CANCEL_PNL_SINGLE = 95;
+    private static final int REQ_HISTORICAL_TICKS = 96;
+    private static final int REQ_TICK_BY_TICK_DATA = 97;
+    private static final int CANCEL_TICK_BY_TICK_DATA = 98;
 
 	private static final int MIN_SERVER_VER_REAL_TIME_BARS = 34;
 	private static final int MIN_SERVER_VER_SCALE_ORDERS = 35;
@@ -224,10 +244,41 @@ public abstract class EClient {
     protected static final int MIN_SERVER_VER_SEC_DEF_OPT_PARAMS_REQ = 104;
     protected static final int MIN_SERVER_VER_EXT_OPERATOR = 105;
     protected static final int MIN_SERVER_VER_SOFT_DOLLAR_TIER = 106;
+    protected static final int MIN_SERVER_VER_REQ_FAMILY_CODES = 107;
+    protected static final int MIN_SERVER_VER_REQ_MATCHING_SYMBOLS = 108;
+    protected static final int MIN_SERVER_VER_PAST_LIMIT = 109;
+    protected static final int MIN_SERVER_VER_MD_SIZE_MULTIPLIER = 110;
+    protected static final int MIN_SERVER_VER_CASH_QTY = 111;
+    protected static final int MIN_SERVER_VER_REQ_MKT_DEPTH_EXCHANGES = 112;
+    protected static final int MIN_SERVER_VER_TICK_NEWS = 113;
+    protected static final int MIN_SERVER_VER_REQ_SMART_COMPONENTS = 114;
+    protected static final int MIN_SERVER_VER_REQ_NEWS_PROVIDERS = 115;
+    protected static final int MIN_SERVER_VER_REQ_NEWS_ARTICLE = 116;
+    protected static final int MIN_SERVER_VER_REQ_HISTORICAL_NEWS = 117;
+    protected static final int MIN_SERVER_VER_REQ_HEAD_TIMESTAMP = 118;
+    protected static final int MIN_SERVER_VER_REQ_HISTOGRAM = 119;
+    protected static final int MIN_SERVER_VER_SERVICE_DATA_TYPE = 120;
+    protected static final int MIN_SERVER_VER_AGG_GROUP = 121;
+    protected static final int MIN_SERVER_VER_UNDERLYING_INFO = 122;
+    protected static final int MIN_SERVER_VER_CANCEL_HEADTIMESTAMP = 123;
+    protected static final int MIN_SERVER_VER_SYNT_REALTIME_BARS = 124;
+    protected static final int MIN_SERVER_VER_CFD_REROUTE = 125;
+    protected static final int MIN_SERVER_VER_MARKET_RULES = 126;
+    protected static final int MIN_SERVER_VER_PNL = 127;
+    protected static final int MIN_SERVER_VER_NEWS_QUERY_ORIGINS = 128;
+    protected static final int MIN_SERVER_VER_UNREALIZED_PNL = 129;
+    protected static final int MIN_SERVER_VER_HISTORICAL_TICKS = 130;
+    protected static final int MIN_SERVER_VER_MARKET_CAP_PRICE = 131;
+    protected static final int MIN_SERVER_VER_PRE_OPEN_BID_ASK = 132;
+    protected static final int MIN_SERVER_VER_REAL_EXPIRATION_DATE = 134;
+    protected static final int MIN_SERVER_VER_REALIZED_PNL = 135;
+    protected static final int MIN_SERVER_VER_LAST_LIQUIDITY = 136;
+    protected static final int MIN_SERVER_VER_TICK_BY_TICK = 137;
+    protected static final int MIN_SERVER_VER_DECISION_MAKER = 138;
+    protected static final int MIN_SERVER_VER_MIFID_EXECUTION = 139;
     
     public static final int MIN_VERSION = 100; // envelope encoding, applicable to useV100Plus mode only
-    public static final int MAX_VERSION = MIN_SERVER_VER_SOFT_DOLLAR_TIER; // ditto
-
+    public static final int MAX_VERSION = MIN_SERVER_VER_MIFID_EXECUTION; // ditto
 
     protected EReaderSignal m_signal;
     protected EWrapper m_eWrapper;    // msg handler
@@ -246,17 +297,16 @@ public abstract class EClient {
 	}
 
     public int serverVersion()          { return m_serverVersion;   }
-    public String TwsConnectionTime()   { return m_TwsTime; }
+    public String getTwsConnectionTime()   { return m_TwsTime; }
     public EWrapper wrapper()           { return m_eWrapper; }
-//    public EReader reader()             { return m_reader; }
     public abstract boolean isConnected();
 
     // set
     protected synchronized void setExtraAuth(boolean extraAuth) { m_extraAuth = extraAuth; }
-    public void OptionalCapabilities(String val) 		{ m_optionalCapabilities = val; }
+    public void optionalCapabilities(String val) 		{ m_optionalCapabilities = val; }
 
     // get
-    public String OptionalCapabilities() { return m_optionalCapabilities; }
+    public String optionalCapabilities() { return m_optionalCapabilities; }
 
     public EClient( EWrapper eWrapper, EReaderSignal signal) {
         m_eWrapper = eWrapper;
@@ -407,7 +457,7 @@ public abstract class EClient {
         }
     }
 
-    public synchronized void reqScannerSubscription( int tickerId, ScannerSubscription subscription, ArrayList<TagValue> scannerSubscriptionOptions) {
+    public synchronized void reqScannerSubscription( int tickerId, ScannerSubscription subscription, List<TagValue> scannerSubscriptionOptions) {
         // not connected?
         if( !isConnected()) {
             notConnected();
@@ -460,11 +510,8 @@ public abstract class EClient {
                 int scannerSubscriptionOptionsCount = scannerSubscriptionOptions == null ? 0 : scannerSubscriptionOptions.size();
                 if( scannerSubscriptionOptionsCount > 0) {
                     for( int i = 0; i < scannerSubscriptionOptionsCount; ++i) {
-                        TagValue tagValue = (TagValue)scannerSubscriptionOptions.get(i);
-                        scannerSubscriptionOptionsStr.append( tagValue.m_tag);
-                        scannerSubscriptionOptionsStr.append( "=");
-                        scannerSubscriptionOptionsStr.append( tagValue.m_value);
-                        scannerSubscriptionOptionsStr.append( ";");
+                        TagValue tagValue = scannerSubscriptionOptions.get(i);
+                        scannerSubscriptionOptionsStr.append( tagValue.m_tag).append("=").append(tagValue.m_value).append(";");
                     }
                 }
                 b.send( scannerSubscriptionOptionsStr.toString());
@@ -478,7 +525,7 @@ public abstract class EClient {
     }
 
     public synchronized void reqMktData(int tickerId, Contract contract,
-    		String genericTickList, boolean snapshot, List<TagValue> mktDataOptions) {
+    		String genericTickList, boolean snapshot, boolean regulatorySnapshot, List<TagValue> mktDataOptions) {
         if (!isConnected()) {
             error(EClientErrors.NO_VALID_ID, EClientErrors.NOT_CONNECTED, "");
             return;
@@ -592,17 +639,18 @@ public abstract class EClient {
             	b.send (snapshot);
             }
             
+            if (m_serverVersion >= MIN_SERVER_VER_REQ_SMART_COMPONENTS) {
+            	b.send(regulatorySnapshot);
+            }
+            
             // send mktDataOptions parameter
             if(m_serverVersion >= MIN_SERVER_VER_LINKING) {
                 StringBuilder mktDataOptionsStr = new StringBuilder();
                 int mktDataOptionsCount = mktDataOptions == null ? 0 : mktDataOptions.size();
                 if( mktDataOptionsCount > 0) {
                     for( int i = 0; i < mktDataOptionsCount; ++i) {
-                        TagValue tagValue = (TagValue)mktDataOptions.get(i);
-                        mktDataOptionsStr.append( tagValue.m_tag);
-                        mktDataOptionsStr.append( "=");
-                        mktDataOptionsStr.append( tagValue.m_value);
-                        mktDataOptionsStr.append( ";");
+                        TagValue tagValue = mktDataOptions.get(i);
+                        mktDataOptionsStr.append(tagValue.m_tag).append("=").append(tagValue.m_value).append(";");
                     }
                 }
                 b.send( mktDataOptionsStr.toString());
@@ -646,7 +694,7 @@ public abstract class EClient {
         }
     }
 
-    public void cancelRealTimeBars(int tickerId) {
+    public synchronized void cancelRealTimeBars(int tickerId) {
         // not connected?
         if( !isConnected()) {
             notConnected();
@@ -681,7 +729,7 @@ public abstract class EClient {
     public synchronized void reqHistoricalData( int tickerId, Contract contract,
                                                 String endDateTime, String durationStr,
                                                 String barSizeSetting, String whatToShow,
-                                                int useRTH, int formatDate, List<TagValue> chartOptions) {
+                                                int useRTH, int formatDate, boolean keepUpToDate, List<TagValue> chartOptions) {
         // not connected?
         if( !isConnected()) {
             notConnected();
@@ -700,7 +748,7 @@ public abstract class EClient {
           if (m_serverVersion < MIN_SERVER_VER_TRADING_CLASS) {
               if (!IsEmpty(contract.tradingClass()) || (contract.conid() > 0)) {
                   error(tickerId, EClientErrors.UPDATE_TWS,
-                      "  It does not support conId and tradingClass parameters in reqHistroricalData.");
+                      "  It does not support conId and tradingClass parameters in reqHistoricalData.");
                   return;
               }
           }
@@ -708,7 +756,11 @@ public abstract class EClient {
           Builder b = prepareBuffer(); 
 
           b.send(REQ_HISTORICAL_DATA);
-          b.send(VERSION);
+          
+          if (m_serverVersion < MIN_SERVER_VER_SYNT_REALTIME_BARS) {
+              b.send(VERSION);
+          }
+          
           b.send(tickerId);
 
           // send contract fields
@@ -759,21 +811,23 @@ public abstract class EClient {
               }
           }
           
-          // send chartOptions parameter
+          if (m_serverVersion >= MIN_SERVER_VER_SYNT_REALTIME_BARS) {
+              b.send(keepUpToDate);
+          }
+          
+         // send chartOptions parameter
           if(m_serverVersion >= MIN_SERVER_VER_LINKING) {
               StringBuilder chartOptionsStr = new StringBuilder();
               int chartOptionsCount = chartOptions == null ? 0 : chartOptions.size();
               if( chartOptionsCount > 0) {
                   for( int i = 0; i < chartOptionsCount; ++i) {
-                      TagValue tagValue = (TagValue)chartOptions.get(i);
-                      chartOptionsStr.append( tagValue.m_tag);
-                      chartOptionsStr.append( "=");
-                      chartOptionsStr.append( tagValue.m_value);
-                      chartOptionsStr.append( ";");
+                      TagValue tagValue = chartOptions.get(i);
+                      chartOptionsStr.append(tagValue.m_tag).append("=").append(tagValue.m_value).append( ";");
                   }
               }
               b.send( chartOptionsStr.toString());
           }
+          
           closeAndSend(b);
         }
         catch (Exception e) {
@@ -782,7 +836,67 @@ public abstract class EClient {
         }
     }
 
-    public synchronized void reqRealTimeBars(int tickerId, Contract contract, int barSize, String whatToShow, boolean useRTH, ArrayList<TagValue> realTimeBarsOptions) {
+    /** Note that formatData parameter affects intra-day bars only; 1-day bars always return with date in YYYYMMDD format. */
+    public synchronized void reqHeadTimestamp(int tickerId, Contract contract,
+                                                String whatToShow, int useRTH, int formatDate) {
+    	// not connected?
+    	if( !isConnected()) {
+    		notConnected();
+    		return;
+    	}
+
+    	try {
+    		if (m_serverVersion < MIN_SERVER_VER_REQ_HEAD_TIMESTAMP) {              
+    			error(tickerId, EClientErrors.UPDATE_TWS,
+    					"  It does not support head time stamp requests.");
+    			return;
+    		}
+
+    		Builder b = prepareBuffer(); 
+
+    		b.send(REQ_HEAD_TIMESTAMP);
+    		b.send(tickerId);
+    		b.send(contract);
+    		b.send(useRTH);
+    		b.send(whatToShow);          
+    		b.send(formatDate);
+
+        	closeAndSend(b);
+        }
+        catch (Exception e) {
+          error(tickerId, EClientErrors.FAIL_SEND_REQHEADTIMESTAMP, e.toString());
+          close();
+        }
+    }
+    
+    public synchronized void cancelHeadTimestamp(int tickerId) {
+    	// not connected?
+    	if( !isConnected()) {
+    		notConnected();
+    		return;
+    	}
+
+    	try {
+    		if (m_serverVersion < MIN_SERVER_VER_CANCEL_HEADTIMESTAMP) {
+    			error(tickerId, EClientErrors.UPDATE_TWS,
+    					"  It does not support head time stamp requests canceling.");
+    			return;
+    		}
+
+    		Builder b = prepareBuffer(); 
+
+    		b.send(CANCEL_HEAD_TIMESTAMP);
+    		b.send(tickerId);
+    		closeAndSend(b);
+    	}
+    	catch (Exception e) {
+    		error(tickerId, EClientErrors.FAIL_SEND_CANHEADTIMESTAMP, e.toString());
+    		close();
+        }
+   }
+    
+    
+    public synchronized void reqRealTimeBars(int tickerId, Contract contract, int barSize, String whatToShow, boolean useRTH, List<TagValue> realTimeBarsOptions) {
         // not connected?
         if( !isConnected()) {
             notConnected();
@@ -839,11 +953,8 @@ public abstract class EClient {
                 int realTimeBarsOptionsCount = realTimeBarsOptions == null ? 0 : realTimeBarsOptions.size();
                 if( realTimeBarsOptionsCount > 0) {
                     for( int i = 0; i < realTimeBarsOptionsCount; ++i) {
-                        TagValue tagValue = (TagValue)realTimeBarsOptions.get(i);
-                        realTimeBarsOptionsStr.append( tagValue.m_tag);
-                        realTimeBarsOptionsStr.append( "=");
-                        realTimeBarsOptionsStr.append( tagValue.m_value);
-                        realTimeBarsOptionsStr.append( ";");
+                        TagValue tagValue = realTimeBarsOptions.get(i);
+                        realTimeBarsOptionsStr.append(tagValue.m_tag).append("=").append(tagValue.m_value).append(";");
                     }
                 }
                 b.send( realTimeBarsOptionsStr.toString());
@@ -924,14 +1035,11 @@ public abstract class EClient {
             	b.send(contract.exchange());
             	b.send(contract.primaryExch());
             }
-            else if (m_serverVersion >= MIN_SERVER_VER_LINKING)
-            {
-                if (!IsEmpty(contract.primaryExch()) && (contract.exchange() == "BEST" || contract.exchange() == "SMART"))
-                {
+            else if (m_serverVersion >= MIN_SERVER_VER_LINKING) {
+                if (!IsEmpty(contract.primaryExch())
+                        && ("BEST".equals(contract.exchange()) || "SMART".equals(contract.exchange()))) {
                    	b.send(contract.exchange() + ":" + contract.primaryExch());
-                }
-                else
-                {
+                } else {
                 	b.send(contract.exchange());
                 }
             }
@@ -956,7 +1064,7 @@ public abstract class EClient {
         }
     }
 
-    public synchronized void reqMktDepth( int tickerId, Contract contract, int numRows, ArrayList<TagValue> mktDepthOptions) {
+    public synchronized void reqMktDepth( int tickerId, Contract contract, int numRows, List<TagValue> mktDepthOptions) {
         // not connected?
         if( !isConnected()) {
             notConnected();
@@ -1016,11 +1124,8 @@ public abstract class EClient {
                 int mktDepthOptionsCount = mktDepthOptions == null ? 0 : mktDepthOptions.size();
                 if( mktDepthOptionsCount > 0) {
                     for( int i = 0; i < mktDepthOptionsCount; ++i) {
-                        TagValue tagValue = (TagValue)mktDepthOptions.get(i);
-                        mktDepthOptionsStr.append( tagValue.m_tag);
-                        mktDepthOptionsStr.append( "=");
-                        mktDepthOptionsStr.append( tagValue.m_value);
-                        mktDepthOptionsStr.append( ";");
+                        TagValue tagValue = mktDepthOptions.get(i);
+                        mktDepthOptionsStr.append(tagValue.m_tag).append("=").append(tagValue.m_value).append(";");
                     }
                 }
                 b.send( mktDepthOptionsStr.toString());
@@ -1379,6 +1484,31 @@ public abstract class EClient {
         }
         
 
+        if (m_serverVersion < MIN_SERVER_VER_CASH_QTY) {
+            if (order.cashQty() != Double.MAX_VALUE) {
+                error(id, EClientErrors.UPDATE_TWS,
+                    " It does not support cash quantity parameter");
+                return;
+            }
+        }
+        
+        if (m_serverVersion < MIN_SERVER_VER_DECISION_MAKER
+            && (!IsEmpty(order.mifid2DecisionMaker())
+                || !IsEmpty(order.mifid2DecisionAlgo()))) {
+            error(id, EClientErrors.UPDATE_TWS,
+                    " It does not support MIFID II decision maker parameters");
+            return;
+        }
+
+        if (m_serverVersion < MIN_SERVER_VER_MIFID_EXECUTION
+                && (!IsEmpty(order.mifid2ExecutionTrader())
+                        || !IsEmpty(order.mifid2ExecutionAlgo()))) {
+            error(id, EClientErrors.UPDATE_TWS,
+                    " It does not support MIFID II execution parameters");
+            return;
+        }
+
+
         int VERSION = (m_serverVersion < MIN_SERVER_VER_NOT_HELD) ? 27 : 45;
 
         // send place order msg
@@ -1510,7 +1640,7 @@ public abstract class EClient {
             }
 
             if(m_serverVersion >= MIN_SERVER_VER_SMART_COMBO_ROUTING_PARAMS && SecType.BAG.name().equalsIgnoreCase(contract.getSecType())) {
-                ArrayList<TagValue> smartComboRoutingParams = order.smartComboRoutingParams();
+                List<TagValue> smartComboRoutingParams = order.smartComboRoutingParams();
                 int smartComboRoutingParamsCount = smartComboRoutingParams == null ? 0 : smartComboRoutingParams.size();
                 b.send( smartComboRoutingParamsCount);
                 if( smartComboRoutingParamsCount > 0) {
@@ -1696,7 +1826,7 @@ public abstract class EClient {
            if (m_serverVersion >= MIN_SERVER_VER_ALGO_ORDERS) {
         	   b.send( order.getAlgoStrategy());
                if( !IsEmpty(order.getAlgoStrategy())) {
-        		   ArrayList<TagValue> algoParams = order.algoParams();
+        		   List<TagValue> algoParams = order.algoParams();
         		   int algoParamsCount = algoParams.size();
         		   b.send( algoParamsCount);
         		   for( TagValue tagValue : algoParams ) {
@@ -1717,14 +1847,11 @@ public abstract class EClient {
            // send orderMiscOptions parameter
            if(m_serverVersion >= MIN_SERVER_VER_LINKING) {
                StringBuilder orderMiscOptionsStr = new StringBuilder();
-               ArrayList<TagValue> orderMiscOptions = order.orderMiscOptions();
+               List<TagValue> orderMiscOptions = order.orderMiscOptions();
                int orderMiscOptionsCount = orderMiscOptions == null ? 0 : orderMiscOptions.size();
                if( orderMiscOptionsCount > 0) {
                    for( TagValue tagValue : orderMiscOptions ) {
-                       orderMiscOptionsStr.append( tagValue.m_tag);
-                       orderMiscOptionsStr.append( "=");
-                       orderMiscOptionsStr.append( tagValue.m_value);
-                       orderMiscOptionsStr.append( ";");
+                       orderMiscOptionsStr.append(tagValue.m_tag).append("=").append(tagValue.m_value).append(";");
                    }
                }
                b.send( orderMiscOptionsStr.toString());
@@ -1753,7 +1880,7 @@ public abstract class EClient {
         	   if (order.conditions().size() > 0) {
         		   for (OrderCondition item : order.conditions()) {
         			   b.send(item.type().val());
-        			   item.writeExternal(b);
+        			   item.writeTo(b);
         		   }
         		   
         		   b.send(order.conditionsIgnoreRth());
@@ -1779,6 +1906,20 @@ public abstract class EClient {
         	   b.send(tier.name());
         	   b.send(tier.value());
            }           
+
+           if (m_serverVersion >= MIN_SERVER_VER_CASH_QTY) {
+               b.sendMax(order.cashQty());
+           }
+           
+           if (m_serverVersion >= MIN_SERVER_VER_DECISION_MAKER) {
+               b.send(order.mifid2DecisionMaker());
+               b.send(order.mifid2DecisionAlgo());
+           }
+           
+           if (m_serverVersion >= MIN_SERVER_VER_MIFID_EXECUTION) {
+               b.send(order.mifid2ExecutionTrader());
+               b.send(order.mifid2ExecutionAlgo());
+           }
            
            closeAndSend(b);
         }
@@ -2535,7 +2676,7 @@ public abstract class EClient {
         
         if (m_serverVersion < MIN_SERVER_VER_SEC_DEF_OPT_PARAMS_REQ) {
             error(EClientErrors.NO_VALID_ID, EClientErrors.UPDATE_TWS,
-            "  It does not support security definiton option requests.");
+            "  It does not support security definition option requests.");
             return;
         }
         
@@ -2556,7 +2697,7 @@ public abstract class EClient {
         }
 	}
 	
-	public void reqSoftDollarTiers(int reqId) {
+	public synchronized void reqSoftDollarTiers(int reqId) {
 		if (!isConnected()) {
 			notConnected();
 			return;
@@ -3034,8 +3175,526 @@ public abstract class EClient {
             error( EClientErrors.NO_VALID_ID, EClientErrors.FAIL_SEND_UNSUBSCRIBEFROMGROUPEVENTS, e.toString());
         }
     }	
-	
-    /** @deprecated, never called. */
+
+    public synchronized void reqMatchingSymbols( int reqId, String pattern) {
+        // not connected?
+        if( !isConnected()) {
+            notConnected();
+            return;
+        }
+
+        if (m_serverVersion < MIN_SERVER_VER_REQ_MATCHING_SYMBOLS) {
+            error(EClientErrors.NO_VALID_ID, EClientErrors.UPDATE_TWS,
+            "  It does not support matching symbols request.");
+            return;
+        }
+
+        Builder b = prepareBuffer();
+
+        b.send( REQ_MATCHING_SYMBOLS);
+        b.send( reqId);
+        b.send( pattern);
+
+        try {
+            closeAndSend(b);
+        }
+        catch (IOException e) {
+            error( EClientErrors.NO_VALID_ID, EClientErrors.FAIL_SEND_REQMATCHINGSYMBOLS, e.toString());
+        }
+    }	
+
+    public synchronized void reqFamilyCodes() {
+        // not connected?
+        if( !isConnected()) {
+            notConnected();
+            return;
+        }
+
+        if (m_serverVersion < MIN_SERVER_VER_REQ_FAMILY_CODES) {
+            error(EClientErrors.NO_VALID_ID, EClientErrors.UPDATE_TWS,
+            "  It does not support family codes request.");
+            return;
+        }
+
+        Builder b = prepareBuffer();
+
+        b.send( REQ_FAMILY_CODES);
+
+        try {
+            closeAndSend(b);
+        }
+        catch (IOException e) {
+            error( EClientErrors.NO_VALID_ID, EClientErrors.FAIL_SEND_REQFAMILYCODES, e.toString());
+        }
+    }
+
+    public synchronized void reqMktDepthExchanges() {
+        // not connected?
+        if( !isConnected()) {
+            notConnected();
+            return;
+        }
+
+        if (m_serverVersion < MIN_SERVER_VER_REQ_MKT_DEPTH_EXCHANGES) {
+            error(EClientErrors.NO_VALID_ID, EClientErrors.UPDATE_TWS,
+            "  It does not support market depth exchanges request.");
+            return;
+        }
+
+        Builder b = prepareBuffer();
+
+        b.send( REQ_MKT_DEPTH_EXCHANGES);
+
+        try {
+            closeAndSend(b);
+        }
+        catch (IOException e) {
+            error( EClientErrors.NO_VALID_ID, EClientErrors.FAIL_SEND_REQMKTDEPTHEXCHANGES, e.toString());
+        }
+    }
+    
+    public synchronized void reqSmartComponents(int reqId, String bboExchange) {
+        // not connected?
+        if( !isConnected()) {
+            notConnected();
+            return;
+        }
+
+        if (m_serverVersion < MIN_SERVER_VER_REQ_SMART_COMPONENTS) {
+            error(EClientErrors.NO_VALID_ID, EClientErrors.UPDATE_TWS,
+            "  It does not support smart components request.");
+            return;
+        }
+
+        Builder b = prepareBuffer();
+        
+        b.send(REQ_SMART_COMPONENTS);
+        b.send(reqId);
+        b.send(bboExchange);
+        
+        try {
+        	
+            closeAndSend(b);
+        }
+        catch (IOException e) {
+            error( EClientErrors.NO_VALID_ID, EClientErrors.FAIL_SEND_REQSMARTCOMPONENTS, e.toString());
+        }
+    }
+
+    public synchronized void reqNewsProviders() {
+        // not connected?
+        if( !isConnected()) {
+            notConnected();
+            return;
+        }
+
+        if (m_serverVersion < MIN_SERVER_VER_REQ_NEWS_PROVIDERS) {
+            error(EClientErrors.NO_VALID_ID, EClientErrors.UPDATE_TWS,
+            "  It does not support news providers request.");
+            return;
+        }
+
+        Builder b = prepareBuffer();
+
+        b.send( REQ_NEWS_PROVIDERS);
+
+        try {
+            closeAndSend(b);
+        }
+        catch (IOException e) {
+            error( EClientErrors.NO_VALID_ID, EClientErrors.FAIL_SEND_REQNEWSPROVIDERS, e.toString());
+        }
+    }
+
+    public synchronized void reqNewsArticle(int requestId, String providerCode, String articleId, List<TagValue> newsArticleOptions) {
+        // not connected?
+        if( !isConnected()) {
+            notConnected();
+            return;
+        }
+
+        if (m_serverVersion < MIN_SERVER_VER_REQ_NEWS_ARTICLE) {
+            error(EClientErrors.NO_VALID_ID, EClientErrors.UPDATE_TWS,
+            "  It does not support news article request.");
+            return;
+        }
+
+        Builder b = prepareBuffer();
+
+        b.send( REQ_NEWS_ARTICLE);
+        b.send( requestId);
+        b.send( providerCode);
+        b.send( articleId);
+
+        // send newsArticleOptions parameter
+        if (m_serverVersion >= MIN_SERVER_VER_NEWS_QUERY_ORIGINS) {
+            StringBuilder newsArticleOptionsStr = new StringBuilder();
+            int newsArticleOptionsCount = newsArticleOptions == null ? 0 : newsArticleOptions.size();
+            if( newsArticleOptionsCount > 0) {
+                for( int i = 0; i < newsArticleOptionsCount; ++i) {
+                    TagValue tagValue = newsArticleOptions.get(i);
+                    newsArticleOptionsStr.append(tagValue.m_tag).append("=").append(tagValue.m_value).append(";");
+                }
+            }
+            b.send( newsArticleOptionsStr.toString());
+        }
+        
+        try {
+            closeAndSend(b);
+        }
+        catch (IOException e) {
+            error( EClientErrors.NO_VALID_ID, EClientErrors.FAIL_SEND_REQNEWSARTICLE, e.toString());
+        }
+    }
+
+    public synchronized void reqHistoricalNews( int requestId, int conId, String providerCodes, 
+            String startDateTime, String endDateTime, int totalResults, List<TagValue> historicalNewsOptions) {
+
+        // not connected?
+        if( !isConnected()) {
+            notConnected();
+            return;
+        }
+
+        if (m_serverVersion < MIN_SERVER_VER_REQ_HISTORICAL_NEWS) {
+            error(EClientErrors.NO_VALID_ID, EClientErrors.UPDATE_TWS,
+            "  It does not support historical news request.");
+            return;
+        }
+
+        Builder b = prepareBuffer();
+
+        b.send( REQ_HISTORICAL_NEWS);
+        b.send( requestId);
+        b.send( conId);
+        b.send( providerCodes);
+        b.send( startDateTime);
+        b.send( endDateTime);
+        b.send( totalResults);
+
+        // send historicalNewsOptions parameter
+        if (m_serverVersion >= MIN_SERVER_VER_NEWS_QUERY_ORIGINS) {
+            StringBuilder historicalNewsOptionsStr = new StringBuilder();
+            int historicalNewsOptionsCount = historicalNewsOptions == null ? 0 : historicalNewsOptions.size();
+            if( historicalNewsOptionsCount > 0) {
+                for( int i = 0; i < historicalNewsOptionsCount; ++i) {
+                    TagValue tagValue = historicalNewsOptions.get(i);
+                    historicalNewsOptionsStr.append(tagValue.m_tag).append("=").append(tagValue.m_value).append(";");
+                }
+            }
+            b.send( historicalNewsOptionsStr.toString());
+        }
+
+        try {
+            closeAndSend(b);
+        }
+        catch (IOException e) {
+            error( EClientErrors.NO_VALID_ID, EClientErrors.FAIL_SEND_REQHISTORICALNEWS, e.toString());
+        }
+    }
+
+    public synchronized void reqHistogramData(int tickerId, Contract contract,
+    		boolean useRTH, String timePeriod) {
+    	// not connected?
+    	if( !isConnected()) {
+    		notConnected();
+    		return;
+    	}
+
+    	try {
+    		if (m_serverVersion < MIN_SERVER_VER_REQ_HISTOGRAM) {
+    			error(tickerId, EClientErrors.UPDATE_TWS,
+    					"  It does not support histogram requests.");
+    			return;
+    		}
+
+    		Builder b = prepareBuffer(); 
+
+    		b.send(REQ_HISTOGRAM_DATA);
+    		b.send(tickerId);
+    		b.send(contract);
+    		b.send(useRTH ? 1 : 0);
+    		b.send(timePeriod);
+
+    		closeAndSend(b);
+    	}
+    	catch (Exception e) {
+    		error(tickerId, EClientErrors.FAIL_SEND_REQHISTDATA, e.toString());
+    		close();
+    	}
+    }
+    
+    public synchronized void cancelHistogramData( int tickerId ) {
+        // not connected?
+        if( !isConnected()) {
+            notConnected();
+            return;
+        }
+
+        if (m_serverVersion < MIN_SERVER_VER_REQ_HISTOGRAM) {
+        	error(tickerId, EClientErrors.UPDATE_TWS,
+        			"  It does not support head time stamp requests.");
+        	return;
+        }
+
+        // send cancel mkt data msg
+        try {
+            Builder b = prepareBuffer(); 
+
+            b.send(CANCEL_HISTOGRAM_DATA);
+            b.send(tickerId);
+
+            closeAndSend(b);
+        }
+        catch( Exception e) {
+            error( tickerId, EClientErrors.FAIL_SEND_CANHISTDATA, e.toString());
+            close();
+        }
+    }
+
+    public synchronized void reqMarketRule( int marketRuleId) {
+        // not connected?
+        if( !isConnected()) {
+            notConnected();
+            return;
+        }
+
+        if (m_serverVersion < MIN_SERVER_VER_MARKET_RULES) {
+            error( EClientErrors.NO_VALID_ID, EClientErrors.UPDATE_TWS,
+                    "  It does not support market rule requests.");
+            return;
+        }
+
+        // send request market rule msg
+        try {
+            Builder b = prepareBuffer(); 
+
+            b.send(REQ_MARKET_RULE);
+            b.send(marketRuleId);
+
+            closeAndSend(b);
+        }
+        catch( Exception e) {
+            error( EClientErrors.NO_VALID_ID, EClientErrors.FAIL_SEND_REQMARKETRULE, e.toString());
+            close();
+        }
+    }
+    
+    public synchronized void reqPnL(int reqId, String account, String modelCode) {
+        if( !isConnected()) {
+            notConnected();
+            return;
+        }
+
+        if (m_serverVersion < MIN_SERVER_VER_PNL) {
+        	error(reqId, EClientErrors.UPDATE_TWS,
+        			"  It does not support PnL requests.");
+        	return;
+        }
+        
+        try {
+            Builder b = prepareBuffer(); 
+
+            b.send(REQ_PNL);
+            b.send(reqId);
+            b.send(account);
+            b.send(modelCode);
+
+            closeAndSend(b);
+        } catch(Exception e) {
+            error(reqId, EClientErrors.FAIL_SEND_REQPNL, e.toString());
+            close();
+        }
+    }
+    
+    public synchronized void cancelPnL(int reqId) {
+        if( !isConnected()) {
+            notConnected();
+            return;
+        }
+
+        if (m_serverVersion < MIN_SERVER_VER_PNL) {
+        	error(reqId, EClientErrors.UPDATE_TWS,
+        			"  It does not support PnL requests.");
+        	return;
+        }
+        
+        try {
+            Builder b = prepareBuffer(); 
+
+            b.send(CANCEL_PNL);
+            b.send(reqId);
+
+            closeAndSend(b);
+        } catch(Exception e) {
+            error(reqId, EClientErrors.FAIL_SEND_CANPNL, e.toString());
+            close();
+        }
+    }
+
+    public synchronized void reqPnLSingle(int reqId, String account, String modelCode, int conId) {
+        if( !isConnected()) {
+            notConnected();
+            return;
+        }
+
+        if (m_serverVersion < MIN_SERVER_VER_PNL) {
+        	error(reqId, EClientErrors.UPDATE_TWS,
+        			"  It does not support PnL requests.");
+        	return;
+        }
+        
+        try {
+            Builder b = prepareBuffer(); 
+
+            b.send(REQ_PNL_SINGLE);
+            b.send(reqId);
+            b.send(account);
+            b.send(modelCode);
+            b.send(conId);
+
+            closeAndSend(b);
+        } catch(Exception e) {
+            error(reqId, EClientErrors.FAIL_SEND_REQPNL_SINGLE, e.toString());
+            close();
+        }
+    }
+    
+    public synchronized void cancelPnLSingle(int reqId) {
+        if( !isConnected()) {
+            notConnected();
+            return;
+        }
+
+        if (m_serverVersion < MIN_SERVER_VER_PNL) {
+        	error(reqId, EClientErrors.UPDATE_TWS,
+        			"  It does not support PnL requests.");
+        	return;
+        }
+        
+        try {
+            Builder b = prepareBuffer(); 
+
+            b.send(CANCEL_PNL_SINGLE);
+            b.send(reqId);
+
+            closeAndSend(b);
+        } catch(Exception e) {
+            error(reqId, EClientErrors.FAIL_SEND_CANPNL_SINGLE, e.toString());
+            close();
+        }
+    }
+    
+    public synchronized void reqHistoricalTicks(int reqId, Contract contract, String startDateTime,
+            String endDateTime, int numberOfTicks, String whatToShow, int useRth, boolean ignoreSize,
+            List<TagValue> miscOptions) {
+        if( !isConnected()) {
+            notConnected();
+            return;
+        }
+
+        if (m_serverVersion < MIN_SERVER_VER_HISTORICAL_TICKS) {
+            error(reqId, EClientErrors.UPDATE_TWS,
+                    "  It does not support historical ticks request.");
+            return;
+        }
+        
+        try {
+            Builder b = prepareBuffer(); 
+            String miscOptionsString = Optional.ofNullable(miscOptions).orElse(new ArrayList<TagValue>()).stream().
+                    map(option -> option.m_tag + "=" + option.m_value + ";").reduce("", (sum, option) -> sum + option);
+
+            b.send(REQ_HISTORICAL_TICKS);
+            b.send(reqId);
+            b.send(contract);
+            b.send(startDateTime);
+            b.send(endDateTime);
+            b.send(numberOfTicks);
+            b.send(whatToShow);
+            b.send(useRth);
+            b.send(ignoreSize);
+            b.send(miscOptionsString);
+
+            closeAndSend(b);
+        } catch(Exception e) {
+            error(reqId, EClientErrors.FAIL_SEND_HISTORICAL_TICK, e.toString());
+            close();
+        }        
+    }
+  
+    public synchronized void reqTickByTickData(int reqId, Contract contract, String tickType) {
+        // not connected?
+        if( !isConnected()) {
+            notConnected();
+            return;
+        }
+
+        if (m_serverVersion < MIN_SERVER_VER_TICK_BY_TICK) {
+          error(EClientErrors.NO_VALID_ID, EClientErrors.UPDATE_TWS,
+                "  It does not support tick-by-tick data requests.");
+          return;
+        }
+
+        try {
+            Builder b = prepareBuffer(); 
+
+            b.send(REQ_TICK_BY_TICK_DATA);
+            b.send(reqId);
+            b.send(contract.conid());
+            b.send(contract.symbol());
+            b.send(contract.getSecType());
+            b.send(contract.lastTradeDateOrContractMonth());
+            b.send(contract.strike());
+            b.send(contract.getRight());
+            b.send(contract.multiplier());
+            b.send(contract.exchange());
+            b.send(contract.primaryExch());
+            b.send(contract.currency());
+            b.send(contract.localSymbol());
+            b.send(contract.tradingClass());
+            b.send(tickType);
+
+            closeAndSend(b);
+        }
+        catch( Exception e) {
+            error( EClientErrors.NO_VALID_ID,
+                   EClientErrors.FAIL_SEND_REQTICKBYTICK, e.toString());
+            close();
+        }
+    }
+
+    public synchronized void cancelTickByTickData(int reqId) {
+        // not connected?
+        if( !isConnected()) {
+            notConnected();
+            return;
+        }
+
+        if (m_serverVersion < MIN_SERVER_VER_TICK_BY_TICK) {
+          error(EClientErrors.NO_VALID_ID, EClientErrors.UPDATE_TWS,
+                "  It does not support tick-by-tick data cancels.");
+          return;
+        }
+
+        try {
+            Builder b = prepareBuffer(); 
+
+            b.send(CANCEL_TICK_BY_TICK_DATA);
+            b.send(reqId);
+
+            closeAndSend(b);
+        }
+        catch( Exception e) {
+            error( EClientErrors.NO_VALID_ID,
+                   EClientErrors.FAIL_SEND_CANTICKBYTICK, e.toString());
+            close();
+        }
+    }
+    
+    /**
+     * @deprecated This method is never called.
+     */
+    @Deprecated
     protected synchronized void error( String err) {
         m_eWrapper.error( err);
     }
@@ -3057,25 +3716,29 @@ public abstract class EClient {
     
     protected abstract void closeAndSend(Builder buf) throws IOException;
     
-   private void sendV100APIHeader() throws IOException {
-    	Builder bos = new Builder(1024);
-    	bos.send("API\0".getBytes());
-    
-    	String out = "v" + (( MIN_VERSION < MAX_VERSION ) 
-    			? MIN_VERSION + ".." + MAX_VERSION
-				: MIN_VERSION);
-    	
-    	if ( !IsEmpty( m_connectOptions ) ) { 
-    		out += " " + m_connectOptions;
-    	}
+    private void sendV100APIHeader() throws IOException {
+    	try (Builder builder = new Builder(1024)) {
+            builder.send("API\0".getBytes(StandardCharsets.UTF_8));
 
-    	int lengthPos = bos.allocateLengthHeader();
-    	bos.send( out.getBytes() );
-    	bos.updateLength( lengthPos );
+            String out = buildVersionString(MIN_VERSION, MAX_VERSION);
 
-    	sendMsg(new EMessage(bos));
+            if (!IsEmpty(m_connectOptions)) {
+                out += " " + m_connectOptions;
+            }
+
+            int lengthPos = builder.allocateLengthHeader();
+            builder.send(out.getBytes(StandardCharsets.UTF_8));
+            builder.updateLength(lengthPos);
+
+            sendMsg(new EMessage(builder));
+        }
     }
-   
+
+    private String buildVersionString(int minVersion, int maxVersion) {
+      return "v" + ((minVersion < maxVersion)
+          ? minVersion + ".." + maxVersion : minVersion);
+    }
+
     protected void sendMsg(EMessage msg) throws IOException {
     	m_socketTransport.send(msg);
     }
@@ -3087,18 +3750,17 @@ public abstract class EClient {
     protected void notConnected() {
         error(EClientErrors.NO_VALID_ID, EClientErrors.NOT_CONNECTED, "");
     }
-    
-	public String connectedHost()        { return m_host; } // Host that was connected/redirected
-	protected void send( int val) throws IOException {
-		send( String.valueOf( val) );
-	}
+
+    public String connectedHost()        { return m_host; } // Host that was connected/redirected
+    protected void send( int val) throws IOException {
+        send( String.valueOf( val) );
+    }
 	// Sends String without length prefix (pre-V100 style)
 	protected void send( String str) throws IOException {
 		// Write string to data buffer
-		Builder b = new Builder( 1024 );
-	
-		b.send(str);
-	
-		sendMsg(new EMessage(b));
+		try (Builder builder = new Builder( 1024 )) {
+            builder.send(str);
+            sendMsg(new EMessage(builder));
+        }
 	}
 }

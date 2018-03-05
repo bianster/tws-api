@@ -48,7 +48,7 @@ public class ComboLeg {
     public void designatedLocation(String v) { m_designatedLocation = v; }
     public void exchange(String v)           { m_exchange = v; }
     public void exemptCode(int v)            { m_exemptCode = v; }
-    public void openClose(OpenClose v)       { m_openClose = ( v == null ) ? null : v.ordinal(); }
+    public void openClose(OpenClose v)       { m_openClose = ( v == null ) ? 0 : v.ordinal(); }
     public void openClose(int v)             { m_openClose = v; }
     public void ratio(int v)                 { m_ratio = v; }
     public void shortSaleSlot(int v)         { m_shortSaleSlot = v; }
@@ -86,10 +86,10 @@ public class ComboLeg {
 
     @Override
     public boolean equals(Object p_other) {
-        if ( this == p_other ) {
+        if (this == p_other) {
             return true;
         }
-        else if ( p_other == null ) {
+        if (!(p_other instanceof ComboLeg)) {
             return false;
         }
 
@@ -110,6 +110,17 @@ public class ComboLeg {
         }
 
         return true;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = m_conid;
+        result = result * 31 + m_ratio;
+        result = result * 31 + m_openClose;
+        result = result * 31 + m_shortSaleSlot;
+        result = result * 31 + m_exemptCode;
+        // Other fields are strings compared ignoring case and with null checks. Do not use them.
+        return result;
     }
 
     @Override public String toString() {

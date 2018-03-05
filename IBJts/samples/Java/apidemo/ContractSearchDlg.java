@@ -6,14 +6,13 @@ import java.awt.Component;
 import java.awt.FlowLayout;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
-import java.util.ArrayList;
+import java.util.List;
 
 import javax.swing.DefaultListModel;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JPanel;
-import javax.swing.ListCellRenderer;
 
 import com.ib.client.Contract;
 import com.ib.client.ContractDetails;
@@ -26,23 +25,23 @@ public class ContractSearchDlg extends JDialog {
 
 	private final ContractPanel m_contractPanel;
 	private Contract m_contract = new Contract();
-	private final DefaultListModel<Contract> m_contractList = new DefaultListModel<Contract>();
-	private final JList m_contracts = new JList(m_contractList);
+	private final DefaultListModel<Contract> m_contractList = new DefaultListModel<>();
+	private final JList<Contract> m_contracts = new JList<>(m_contractList);
 	private final ContractLookuper m_lookuper;
 	
-	private ArrayList<ContractDetails> lookupContract() {
+	private List<ContractDetails> lookupContract() {
 		//return com.ib.client.Util.lookupContract(ApiDemo.INSTANCE.controller(), m_contract);
 		return m_lookuper.lookupContract(m_contract);
 	}
 
-	public ContractSearchDlg(int conId, String exchange, ContractLookuper lookuper) {
+	ContractSearchDlg(int conId, String exchange, ContractLookuper lookuper) {
 		m_lookuper = lookuper;
 		
 		if (conId > 0 && !exchange.isEmpty()) {
 			m_contract.conid(conId);
 			m_contract.exchange(exchange);
 			
-			ArrayList<ContractDetails> list = lookupContract();
+			List<ContractDetails> list = lookupContract();
 			
 			if (!list.isEmpty()) {
 				m_contract = list.get(0).contract();
@@ -56,17 +55,10 @@ public class ContractSearchDlg extends JDialog {
 		buttons.add(new HtmlButton("search") { 			
 			@Override protected void actionPerformed() {
 				onSearch();
-			}; 
-		});
-		
-		m_contracts.setCellRenderer(new ListCellRenderer<Contract>() {
-			@Override
-			public Component getListCellRendererComponent(
-					JList<? extends Contract> list, Contract value, int index,
-					boolean isSelected, boolean cellHasFocus) {
-				return onGetListCellRenderer(value, isSelected);
 			}
 		});
+		
+		m_contracts.setCellRenderer((list, value, index, isSelected, cellHasFocus) -> onGetListCellRenderer(value, isSelected));
 		
 		m_contracts.addMouseListener(new MouseListener() {
 			
@@ -98,18 +90,18 @@ public class ContractSearchDlg extends JDialog {
 		if (m_contractList.isEmpty() || m_contracts.getSelectedIndex() < 0)
 			return m_contract;
 		
-		return ((Contract)m_contractList.get(m_contracts.getSelectedIndex())); 
+		return (m_contractList.get(m_contracts.getSelectedIndex()));
 	}
 
-	public int refConId() { 
+	int refConId() {
 		return selectedContract().conid(); 
 	}
 	
-	public String refExchId() { 
+	String refExchId() {
 		return selectedContract().exchange(); 
 	}
 	
-	public String refContract() { 
+	String refContract() {
 		if (selectedContract().conid() == 0 || selectedContract().exchange().isEmpty())
 			return null;
 		
@@ -122,7 +114,7 @@ public class ContractSearchDlg extends JDialog {
 		m_contract.conid(0);
 		m_contract.tradingClass(null);
 
-		ArrayList<ContractDetails> list = lookupContract();
+		List<ContractDetails> list = lookupContract();
 
 		m_contractList.clear();
 

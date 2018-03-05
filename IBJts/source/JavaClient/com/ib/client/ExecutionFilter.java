@@ -47,24 +47,25 @@ public class ExecutionFilter{
 
     @Override
     public boolean equals(Object p_other) {
-        boolean l_bRetVal = false;
+        if (this == p_other) {
+            return true;
+        }
+        if (!(p_other instanceof ExecutionFilter)) {
+            return false;
+        }
+        ExecutionFilter l_theOther = (ExecutionFilter)p_other;
+        return m_clientId == l_theOther.m_clientId &&
+               m_acctCode.equalsIgnoreCase( l_theOther.m_acctCode) &&
+               m_time.equalsIgnoreCase( l_theOther.m_time) &&
+               m_symbol.equalsIgnoreCase( l_theOther.m_symbol) &&
+               m_secType.equalsIgnoreCase( l_theOther.m_secType) &&
+               m_exchange.equalsIgnoreCase( l_theOther.m_exchange) &&
+               m_side.equalsIgnoreCase( l_theOther.m_side);
+    }
 
-        if ( p_other == null ) {
-            l_bRetVal = false;
-		}
-        else if ( this == p_other ) {
-            l_bRetVal = true;
-        }
-        else {
-            ExecutionFilter l_theOther = (ExecutionFilter)p_other;
-            l_bRetVal = (m_clientId == l_theOther.m_clientId &&
-                    m_acctCode.equalsIgnoreCase( l_theOther.m_acctCode) &&
-                    m_time.equalsIgnoreCase( l_theOther.m_time) &&
-                    m_symbol.equalsIgnoreCase( l_theOther.m_symbol) &&
-                    m_secType.equalsIgnoreCase( l_theOther.m_secType) &&
-                    m_exchange.equalsIgnoreCase( l_theOther.m_exchange) &&
-                    m_side.equalsIgnoreCase( l_theOther.m_side) );
-        }
-        return l_bRetVal;
+    @Override
+    public int hashCode() {
+        // Use m_clientId only since other fields are string compared ignoring case and with null checks.
+        return m_clientId;
     }
 }

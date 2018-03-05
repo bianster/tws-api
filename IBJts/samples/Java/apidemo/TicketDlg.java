@@ -3,13 +3,11 @@
 
 package apidemo;
 
+import static com.ib.client.Util.lookupContract;
 import static com.ib.controller.Formats.fmt;
 
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.util.ArrayList;
 
 import javax.swing.Box;
 import javax.swing.JCheckBox;
@@ -21,8 +19,6 @@ import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 
 import com.ib.client.Contract;
-import com.ib.client.ContractDetails;
-import com.ib.client.ContractLookuper;
 import com.ib.client.Order;
 import com.ib.client.OrderState;
 import com.ib.client.OrderStatus;
@@ -42,7 +38,6 @@ import com.ib.client.Types.TimeInForce;
 import com.ib.client.Types.TriggerMethod;
 import com.ib.client.Types.VolatilityType;
 import com.ib.controller.ApiController.IOrderHandler;
-import com.ib.controller.ApiController.ISoftDollarTiersReqHandler;
 
 import apidemo.util.HtmlButton;
 import apidemo.util.NewTabbedPanel;
@@ -53,10 +48,10 @@ import apidemo.util.VerticalPanel;
 import apidemo.util.VerticalPanel.HorzPanel;
 import apidemo.util.VerticalPanel.StackPanel;
 
-public class TicketDlg extends JDialog {
+class TicketDlg extends JDialog {
 	private boolean m_editContract;
 	private final Contract m_contract;
-	final Order m_order;
+	private final Order m_order;
 	private final ContractPanel m_contractPanel;
 	private final OrderPanel m_orderPanel;
 	private final AdvisorTicketPanel m_advisorPanel;
@@ -69,7 +64,7 @@ public class TicketDlg extends JDialog {
 	private final AdjustedPanel m_adjustedPanel;
 	private final ConditionsPanel m_conditionPanel;
 	
-	public TicketDlg(Contract contract, Order order) {
+	TicketDlg(Contract contract, Order order) {
 		super( ApiDemo.INSTANCE.frame());
 		
 		if (contract == null) {
@@ -87,12 +82,8 @@ public class TicketDlg extends JDialog {
 		m_order = order;
 		
 		m_contractPanel = new ContractPanel( m_contract);
-		m_pegBenchPanel = new PegBenchPanel(this, m_order, new ContractLookuper() {
-			@Override
-			public ArrayList<ContractDetails> lookupContract(Contract contract) {
-				return com.ib.client.Util.lookupContract(ApiDemo.INSTANCE.controller(), contract);
-			}
-		});
+		m_pegBenchPanel = new PegBenchPanel(this, m_order,
+				c -> lookupContract(ApiDemo.INSTANCE.controller(), c));
 		m_advisorPanel = new AdvisorTicketPanel();
 		m_attribTicketPanel = new MiscTicketPanel();
 		m_volPanel = new VolatilityTicketPanel();
@@ -101,12 +92,8 @@ public class TicketDlg extends JDialog {
 		m_scalePanel = new ScalePanel();
 		m_orderPanel = new OrderPanel();
 		m_adjustedPanel = new AdjustedPanel(this, m_order);
-		m_conditionPanel = new ConditionsPanel(this, m_order, new ContractLookuper() {
-			@Override
-			public ArrayList<ContractDetails> lookupContract(Contract contract) {
-				return com.ib.client.Util.lookupContract(ApiDemo.INSTANCE.controller(), contract);
-			}
-		});
+		m_conditionPanel = new ConditionsPanel(this, m_order,
+				c -> lookupContract(ApiDemo.INSTANCE.controller(), c));
 		
 		HtmlButton transmitOrder = new HtmlButton( "Transmit Order") {
 			@Override public void actionPerformed() {
@@ -161,7 +148,7 @@ public class TicketDlg extends JDialog {
 		Util.closeOnEsc( this);
 	}
 	
-	protected void onTransmitOrder() {
+	private void onTransmitOrder() {
 		scrape();
 		
 		// close window right away for mods
@@ -172,45 +159,29 @@ public class TicketDlg extends JDialog {
 		ApiDemo.INSTANCE.controller().placeOrModifyOrder( m_contract, m_order, new IOrderHandler() {
 			@Override public void orderState(OrderState orderState) {
 				ApiDemo.INSTANCE.controller().removeOrderHandler( this);
-				SwingUtilities.invokeLater( new Runnable() {
-					@Override public void run() {
-						dispose();
-					}
-				});
+				SwingUtilities.invokeLater(() -> dispose());
 			}
-			@Override public void orderStatus(OrderStatus status, double filled, double remaining, double avgFillPrice, long permId, int parentId, double lastFillPrice, int clientId, String whyHeld) {
+			@Override public void orderStatus(OrderStatus status, double filled, double remaining, double avgFillPrice, int permId, int parentId, double lastFillPrice, int clientId, String whyHeld, double mktCapPrice) {
 			}
 			@Override public void handle(int errorCode, final String errorMsg) {
 				m_order.orderId( 0);
-				SwingUtilities.invokeLater( new Runnable() {
-					@Override public void run() {
-						JOptionPane.showMessageDialog( TicketDlg.this, errorMsg);
-					}
-				});
+				SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog( TicketDlg.this, errorMsg));
 			}
 		});
 	}
 
-	protected void onCheckMargin() {
+	private void onCheckMargin() {
 		scrape();
 		
 		m_order.whatIf( true);
 		ApiDemo.INSTANCE.controller().placeOrModifyOrder( m_contract, m_order, new IOrderHandler() {
 			@Override public void orderState(final OrderState orderState) {
-				SwingUtilities.invokeLater( new Runnable() {
-					@Override public void run() {
-						displayMargin( orderState);
-					}
-				});
+				SwingUtilities.invokeLater(() -> displayMargin( orderState));
 			}
 			@Override public void handle(int errorCode, final String errorMsg) {
-				SwingUtilities.invokeLater( new Runnable() {
-					@Override public void run() {
-						JOptionPane.showMessageDialog( TicketDlg.this, errorMsg);
-					}
-				});
+				SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog( TicketDlg.this, errorMsg));
 			}
-			@Override public void orderStatus(OrderStatus status, double filled, double remaining, double avgFillPrice, long permId, int parentId, double lastFillPrice, int clientId, String whyHeld) {
+			@Override public void orderStatus(OrderStatus status, double filled, double remaining, double avgFillPrice, int permId, int parentId, double lastFillPrice, int clientId, String whyHeld, double mktCapPrice) {
 			}
 		});
 		
@@ -218,8 +189,8 @@ public class TicketDlg extends JDialog {
 		m_order.orderId( 0);
 	}
 
-	protected void displayMargin(OrderState orderState) {
-		String str = String.format( "Equity with loan: %s\n\nInitial margin: %s\nMaintenance margin: %s\n",
+	private void displayMargin(OrderState orderState) {
+		String str = String.format( "Equity with loan: %s%n%nInitial margin: %s%nMaintenance margin: %s%n",
 				fmt( Double.parseDouble(orderState.equityWithLoan() ) ),
 				fmt( Double.parseDouble( orderState.initMargin() ) ),
 				fmt( Double.parseDouble(orderState.maintMargin() ) ) );
@@ -274,18 +245,23 @@ public class TicketDlg extends JDialog {
 	}
 
 	class OrderPanel extends VerticalPanel {
-		final TCombo<String> m_account = new TCombo<String>( ApiDemo.INSTANCE.accountList().toArray(new String[0]) );
-		final TCombo<Action> m_action = new TCombo<Action>( Action.values() );
+		final TCombo<String> m_account = new TCombo<>( ApiDemo.INSTANCE.accountList().toArray(new String[0]) );
+		final TCombo<Action> m_action = new TCombo<>( Action.values() );
 		final JTextField m_modelCode = new JTextField();
 		final UpperField m_quantity = new UpperField( "100");
+		final UpperField m_cashQty = new UpperField();
 		final UpperField m_displaySize = new UpperField();
-		final TCombo<OrderType> m_orderType = new TCombo<OrderType>( OrderType.values() ); 
+		final TCombo<OrderType> m_orderType = new TCombo<>( OrderType.values() );
 		final UpperField m_lmtPrice = new UpperField( "200");
 		final UpperField m_auxPrice = new UpperField();
-		final TCombo<TimeInForce> m_tif = new TCombo<TimeInForce>( TimeInForce.values() );
+		final TCombo<TimeInForce> m_tif = new TCombo<>( TimeInForce.values() );
 		final JCheckBox m_nonGuaranteed = new JCheckBox();
 		final UpperField m_lmtPriceOffset = new UpperField();
 		final UpperField m_triggerPrice = new UpperField();
+		final UpperField m_mifid2DecisionMaker = new UpperField();
+        final UpperField m_mifid2DecisionAlgo = new UpperField();
+        final UpperField m_mifid2ExecutionTrader = new UpperField();
+        final UpperField m_mifid2ExecutionAlgo = new UpperField();
 
 		OrderPanel() {
 			m_orderType.removeItemAt( 0); // remove None
@@ -294,6 +270,7 @@ public class TicketDlg extends JDialog {
 			m_modelCode.setText( m_order.modelCode() );
 			m_action.setSelectedItem( m_order.action() );
 			m_quantity.setText( m_order.totalQuantity());
+			m_cashQty.setText( m_order.cashQty());
 			m_displaySize.setText( m_order.displaySize());
 			m_orderType.setSelectedItem( m_order.orderType() );
 			m_lmtPrice.setText( m_order.lmtPrice());
@@ -302,19 +279,31 @@ public class TicketDlg extends JDialog {
 			m_nonGuaranteed.setSelected( getVal( ComboParam.NonGuaranteed).equals( "1") );
 			m_lmtPriceOffset.setText(m_order.lmtPriceOffset());
 			m_triggerPrice.setText(m_order.triggerPrice());
+			m_mifid2DecisionMaker.setText(m_order.mifid2DecisionMaker());
+			m_mifid2DecisionAlgo.setText(m_order.mifid2DecisionAlgo());
+			m_mifid2ExecutionTrader.setText(m_order.mifid2ExecutionTrader());
+			m_mifid2ExecutionAlgo.setText(m_order.mifid2ExecutionAlgo());
 			
-			add( "Account", m_account);
+			add("Account", m_account);
+			
 			m_modelCode.setColumns(7);
-			add( "Model code", m_modelCode);
-			add( "Action", m_action);
-			add( "Quantity", m_quantity);
-			add( "Display size", m_displaySize);
-			add( "Order type", m_orderType);
-			add( "Limit price", m_lmtPrice);
+			
+			add("Model code", m_modelCode);
+			add("Action", m_action);
+			add("Quantity", m_quantity);
+			add("Cash Qty", m_cashQty);
+			add("Display size", m_displaySize);
+			add("Order type", m_orderType);
+			add("Limit price", m_lmtPrice);
 			add("Limit price offset", m_lmtPriceOffset);
 			add("Trigger price", m_triggerPrice);
-			add( "Aux price", m_auxPrice);
-			add( "Time-in-force", m_tif);
+			add("Aux price", m_auxPrice);
+			add("Time-in-force", m_tif);
+            add("MiFID II Decision Maker", m_mifid2DecisionMaker);
+            add("MiFID II Decision Algo", m_mifid2DecisionAlgo);
+            add("MiFID II Execution Trader", m_mifid2ExecutionTrader);
+            add("MiFID II Execution Algo", m_mifid2ExecutionAlgo);
+			
 			if (m_contract.isCombo() ) {
 				add( "Non-guaranteed", m_nonGuaranteed);
 			}
@@ -325,6 +314,7 @@ public class TicketDlg extends JDialog {
 			m_order.modelCode( m_modelCode.getText().trim() );
 			m_order.action( m_action.getSelectedItem() );
 			m_order.totalQuantity( m_quantity.getDouble() );
+			m_order.cashQty( m_cashQty.getDouble() );
 			m_order.displaySize( m_displaySize.getInt() );
 			m_order.orderType( m_orderType.getSelectedItem() );
 			m_order.lmtPrice( m_lmtPrice.getDouble() );
@@ -332,6 +322,10 @@ public class TicketDlg extends JDialog {
 			m_order.tif( m_tif.getSelectedItem() );
 			m_order.lmtPriceOffset(m_lmtPriceOffset.getDouble());
 			m_order.triggerPrice(m_triggerPrice.getDouble());
+			m_order.mifid2DecisionMaker(m_mifid2DecisionMaker.getText());
+			m_order.mifid2DecisionAlgo(m_mifid2DecisionAlgo.getText());
+			m_order.mifid2ExecutionTrader(m_mifid2ExecutionTrader.getText());
+			m_order.mifid2ExecutionAlgo(m_mifid2ExecutionAlgo.getText());
 			
 			if (m_contract.isCombo() ) {
 				TagValue tv = new TagValue( ComboParam.NonGuaranteed.toString(), m_nonGuaranteed.isSelected() ? "1" : "0");
@@ -342,7 +336,7 @@ public class TicketDlg extends JDialog {
 	
 	class AdvisorTicketPanel extends VerticalPanel {
 		final UpperField m_faGroup = new UpperField();
-		final TCombo<Method> m_faMethod = new TCombo<Method>( Method.values() );
+		final TCombo<Method> m_faMethod = new TCombo<>( Method.values() );
 		final UpperField m_faPercentage = new UpperField();
 		final UpperField m_faProfile = new UpperField();
 		
@@ -382,13 +376,13 @@ public class TicketDlg extends JDialog {
 		final UpperField m_nbboPriceCap = new UpperField();
 		final UpperField m_algoId = new UpperField();
 		final UpperField m_extOperator = new UpperField();
-		final TCombo<SoftDollarTier> m_softDollarTiers = new TCombo<SoftDollarTier>();
+		final TCombo<SoftDollarTier> m_softDollarTiers = new TCombo<>();
 
-		final TCombo<OcaType> m_ocaType = new TCombo<OcaType>( OcaType.values() );
-		final TCombo<Rule80A> m_rule80A = new TCombo<Rule80A>( Rule80A.values() );
-		final TCombo<TriggerMethod> m_trigger = new TCombo<TriggerMethod>( TriggerMethod.values() );
+		final TCombo<OcaType> m_ocaType = new TCombo<>( OcaType.values() );
+		final TCombo<Rule80A> m_rule80A = new TCombo<>( Rule80A.values() );
+		final TCombo<TriggerMethod> m_trigger = new TCombo<>( TriggerMethod.values() );
 
-		final TCombo<HedgeType> m_hedgeType = new TCombo<HedgeType>( HedgeType.values() );
+		final TCombo<HedgeType> m_hedgeType = new TCombo<>( HedgeType.values() );
 		final UpperField m_hedgeParam = new UpperField();
 		
 		final JCheckBox m_blockOrder = new JCheckBox();
@@ -479,20 +473,15 @@ public class TicketDlg extends JDialog {
 			m_extOperator.setText(m_order.extOperator());
 			m_softDollarTiers.removeAllItems();
 			
-			ApiDemo.INSTANCE.controller().reqSoftDollarTiers(new ISoftDollarTiersReqHandler() {
+			ApiDemo.INSTANCE.controller().reqSoftDollarTiers(tiers -> {
+                m_softDollarTiers.invalidate();
+                m_softDollarTiers.removeAllItems();
+                m_softDollarTiers.addItem(new SoftDollarTier("", "", ""));
 
-				@Override
-				public void softDollarTiers(SoftDollarTier[] tiers) {
-					m_softDollarTiers.invalidate();					
-					m_softDollarTiers.removeAllItems();
-					m_softDollarTiers.addItem(new SoftDollarTier("", "", ""));
-					
-					for (SoftDollarTier tier : tiers) {
-						m_softDollarTiers.addItem(tier);
-					}
-				}
-				
-			});			
+                for (SoftDollarTier tier : tiers) {
+                    m_softDollarTiers.addItem(tier);
+                }
+            });
 
 		}
 		
@@ -530,10 +519,10 @@ public class TicketDlg extends JDialog {
 	
 	class VolatilityTicketPanel extends VerticalPanel {
 		final UpperField m_volatility = new UpperField();
-		final TCombo<VolatilityType> m_volatilityType = new TCombo<VolatilityType>( VolatilityType.values() );
+		final TCombo<VolatilityType> m_volatilityType = new TCombo<>( VolatilityType.values() );
 		final JCheckBox m_continuousUpdate = new JCheckBox();
-		final TCombo<ReferencePriceType> m_referencePriceType = new TCombo<ReferencePriceType>(ReferencePriceType.values());
-		final TCombo<OrderType> m_deltaNeutralOrderType = new TCombo<OrderType>( OrderType.values() );
+		final TCombo<ReferencePriceType> m_referencePriceType = new TCombo<>(ReferencePriceType.values());
+		final TCombo<OrderType> m_deltaNeutralOrderType = new TCombo<>( OrderType.values() );
 		final UpperField m_deltaNeutralAuxPrice = new UpperField();
 		final UpperField m_deltaNeutralConId = new UpperField();
 		final UpperField m_upper = new UpperField();
@@ -606,7 +595,7 @@ public class TicketDlg extends JDialog {
 	}
 	
 	class AlgoPanel extends VerticalPanel {
-		final TCombo<AlgoStrategy> m_strategy = new TCombo<AlgoStrategy>( AlgoStrategy.values() );
+		final TCombo<AlgoStrategy> m_strategy = new TCombo<>( AlgoStrategy.values() );
 		final UpperField[] m_params = new UpperField[AlgoParam.values().length]; 
 
 		AlgoPanel() {
@@ -627,18 +616,14 @@ public class TicketDlg extends JDialog {
 				}
 			}
 
-			m_strategy.addActionListener( new ActionListener() {
-				@Override public void actionPerformed(ActionEvent e) {
-					onSelChanged();
-				}
-			});
+			m_strategy.addActionListener(e -> onSelChanged());
 			
 			onSelChanged();
 		}
 		
 		void onSelChanged() {
-			for (int i = 0; i < m_params.length; i++) {
-				m_params[i].setEnabled( false);
+			for (UpperField m_param : m_params) {
+				m_param.setEnabled(false);
 			}
 			
 			AlgoStrategy strategy = m_strategy.getSelectedItem();

@@ -1,4 +1,4 @@
-/* Copyright (C) 2013 Interactive Brokers LLC. All rights reserved.  This code is subject to the terms
+/* Copyright (C) 2017 Interactive Brokers LLC. All rights reserved.  This code is subject to the terms
  * and conditions of the IB API Non-Commercial License or the IB API Commercial License, as applicable. */
 
 package apidemo;
@@ -8,6 +8,8 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -169,8 +171,8 @@ public class OrdersPanel extends JPanel {
 	}
 	
 	static class OrdersModel extends AbstractTableModel implements ILiveOrderHandler {
-		private HashMap<Long,OrderRow> m_map = new HashMap<Long,OrderRow>();
-		private ArrayList<OrderRow> m_orders = new ArrayList<OrderRow>();
+		private Map<Integer,OrderRow> m_map = new HashMap<>();
+		private List<OrderRow> m_orders = new ArrayList<>();
 
 		@Override public int getRowCount() {
 			return m_orders.size();
@@ -212,7 +214,7 @@ public class OrdersPanel extends JPanel {
 		@Override public void openOrderEnd() {
 		}
 		
-		@Override public void orderStatus(int orderId, OrderStatus status, double filled, double remaining, double avgFillPrice, long permId, int parentId, double lastFillPrice, int clientId, String whyHeld) {
+		@Override public void orderStatus(int orderId, OrderStatus status, double filled, double remaining, double avgFillPrice, int permId, int parentId, double lastFillPrice, int clientId, String whyHeld, double mktCapPrice) {
 			OrderRow full = m_map.get( permId);
 			if (full != null) {
 				full.m_state.status( status);
@@ -221,7 +223,7 @@ public class OrdersPanel extends JPanel {
 		}
 		
 		@Override public int getColumnCount() {
-			return 9;
+			return 10;
 		}
 		
 		@Override public String getColumnName(int col) {
@@ -233,8 +235,9 @@ public class OrdersPanel extends JPanel {
 				case 4: return "ModelCode";
 				case 5: return "Action";
 				case 6: return "Quantity";
-				case 7: return "Contract";
-				case 8: return "Status";
+				case 7: return "Cash Qty";
+				case 8: return "Contract";
+				case 9: return "Status";
 				default: return null;
 			}
 		}
@@ -250,8 +253,9 @@ public class OrdersPanel extends JPanel {
 				case 4: return order.modelCode();
 				case 5: return order.action();
 				case 6: return order.totalQuantity();
-				case 7: return fullOrder.m_contract.description();
-				case 8: return fullOrder.m_state.status();
+				case 7: return (order.cashQty() == Double.MAX_VALUE) ? "" : String.valueOf(order.cashQty());
+				case 8: return fullOrder.m_contract.description();
+				case 9: return fullOrder.m_state.status();
 				default: return null;
 			}
 		}

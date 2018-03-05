@@ -8,20 +8,14 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
-import com.ib.client.CommissionReport;
-import com.ib.client.Contract;
-import com.ib.client.ContractDetails;
-import com.ib.client.DeltaNeutralContract;
-import com.ib.client.EClientSocket;
-import com.ib.client.EJavaSignal;
-import com.ib.client.EReader;
-import com.ib.client.EWrapper;
-import com.ib.client.Execution;
-import com.ib.client.Order;
-import com.ib.client.OrderState;
-import com.ib.client.SoftDollarTier;
+import javax.swing.SwingUtilities;
+
+import com.ib.client.*;
 
 
 public class SimpleWrapper implements EWrapper {
@@ -58,28 +52,22 @@ public class SimpleWrapper implements EWrapper {
         
         reader.start();
        
-		new Thread() {
-			public void run() {
-				while (m_client.isConnected()) {
-					m_signal.waitForSignal();
-					try {
-						javax.swing.SwingUtilities
-								.invokeAndWait(new Runnable() {
-									@Override
-									public void run() {
-										try {
-											reader.processMsgs();
-										} catch (IOException e) {
-											error(e);
-										}
-									}
-								});
-					} catch (Exception e) {
-						error(e);
-					}
-				}
-			}
-		}.start();
+		new Thread(() -> {
+            while (m_client.isConnected()) {
+                m_signal.waitForSignal();
+                try {
+                    SwingUtilities.invokeAndWait(() -> {
+                                try {
+                                    reader.processMsgs();
+                                } catch (IOException e) {
+                                    error(e);
+                                }
+                            });
+                } catch (Exception e) {
+                    error(e);
+                }
+            }
+        }).start();
 	}
 
 	public void disconnect() {
@@ -110,7 +98,7 @@ public class SimpleWrapper implements EWrapper {
 	 * EWrapper
 	 *****************************************************************/
 
-	public void tickPrice(int tickerId, int field, double price, int canAutoExecute) {
+	public void tickPrice(int tickerId, int field, double price, TickAttr attribs) {
 		logIn("tickPrice");
 	}
 
@@ -144,7 +132,7 @@ public class SimpleWrapper implements EWrapper {
 
 	public void orderStatus(int orderId, String status, double filled, double remaining,
 			double avgFillPrice, int permId, int parentId, double lastFillPrice,
-			int clientId, String whyHeld) {
+			int clientId, String whyHeld, double mktCapPrice) {
 		logIn("orderStatus");    	
 	}
 
@@ -218,8 +206,7 @@ public class SimpleWrapper implements EWrapper {
 		logIn("receiveFA");
 	}
 
-	public void historicalData(int reqId, String date, double open, double high, double low,
-			double close, int volume, int count, double WAP, boolean hasGaps) {
+	public void historicalData(int reqId, Bar bar) {
 		logIn("historicalData");
 	}
 
@@ -345,10 +332,12 @@ public class SimpleWrapper implements EWrapper {
 		sleep(sec * 1000);
 	}
 
-	protected static void sleep(int msec) {
+	private static void sleep(int msec) {
 		try {
 			Thread.sleep(msec);
-		} catch (Exception e) { /* noop */ }
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+		}
 	}
 
 	protected void swStart() {
@@ -362,18 +351,14 @@ public class SimpleWrapper implements EWrapper {
 
 	private void initNextOutput() {
 		try {
-			m_output = new PrintStream(new File("sysout_" + (++m_outputCounter) + ".log"));
+			m_output = new PrintStream(new File("sysout_" + (++m_outputCounter) + ".log"), "UTF-8");
 		} catch (IOException ioe) {
 			ioe.printStackTrace();
 		}		
 	}
 
 	private static void attachDisconnectHook(final SimpleWrapper ut) {
-		Runtime.getRuntime().addShutdownHook(new Thread() {				
-			public void run() {
-				ut.disconnect();
-			}
-		});			    	
+		Runtime.getRuntime().addShutdownHook(new Thread(ut::disconnect));
 	}
 	
 	public void connectAck() {
@@ -398,4 +383,154 @@ public class SimpleWrapper implements EWrapper {
 		// TODO Auto-generated method stub
 		
 	}
+
+    @Override
+    public void familyCodes(FamilyCode[] familyCodes) {
+        // TODO Auto-generated method stub
+
+    }
+
+    @Override
+    public void symbolSamples(int reqId, ContractDescription[] contractDescriptions) {
+        // TODO Auto-generated method stub
+
+    }
+	@Override
+	public void historicalDataEnd(int reqId, String startDateStr, String endDateStr) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void mktDepthExchanges(DepthMktDataDescription[] depthMktDataDescriptions) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void tickNews(int tickerId, long timeStamp, String providerCode, String articleId, String headline,
+			String extraData) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void smartComponents(int reqId, Map<Integer, Entry<String, Character>> theMap) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void tickReqParams(int tickerId, double minTick, String bboExchange, int snapshotPermissions) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void newsProviders(NewsProvider[] newsProviders) {
+		// TODO Auto-generated method stub
+
+	}
+
+	@Override
+	public void newsArticle(int requestId, int articleType, String articleText) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void historicalNews(int requestId, String time, String providerCode, String articleId, String headline) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void historicalNewsEnd(int requestId, boolean hasMore) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void headTimestamp(int reqId, String headTimestamp) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void histogramData(int reqId, List<HistogramEntry> items) {
+		// TODO Auto-generated method stub
+		
+	}
+
+    @Override
+    public void historicalDataUpdate(int reqId, Bar bar) {
+        // TODO Auto-generated method stub
+        
+    }
+
+    @Override
+    public void pnl(int reqId, double dailyPnL, double unrealizedPnL, double realizedPnL) {
+        // TODO Auto-generated method stub
+        
+    }
+
+	@Override
+	public void rerouteMktDataReq(int reqId, int conId, String exchange) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void rerouteMktDepthReq(int reqId, int conId, String exchange) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void marketRule(int marketRuleId, PriceIncrement[] priceIncrements) {
+		// TODO Auto-generated method stub
+		
+	}
+
+    @Override
+    public void pnlSingle(int reqId, int pos, double dailyPnL, double unrealizedPnL, double realizedPnL, double value) {
+        // TODO Auto-generated method stub
+        
+    }
+
+    @Override
+    public void historicalTicks(int reqId, List<HistoricalTick> ticks, boolean last) {
+        // TODO Auto-generated method stub
+        
+    }
+
+    @Override
+    public void historicalTicksBidAsk(int reqId, List<HistoricalTickBidAsk> ticks, boolean done) {
+        // TODO Auto-generated method stub
+        
+    }
+
+
+    @Override
+    public void historicalTicksLast(int reqId, List<HistoricalTickLast> ticks, boolean done) {
+        // TODO Auto-generated method stub
+        
+    }
+
+    @Override
+    public void tickByTickAllLast(int reqId, int tickType, long time, double price, int size, TickAttr attribs,
+            String exchange, String specialConditions) {
+        // TODO Auto-generated method stub
+    }
+
+    @Override
+    public void tickByTickBidAsk(int reqId, long time, double bidPrice, double askPrice, int bidSize, int askSize,
+            TickAttr attribs) {
+        // TODO Auto-generated method stub
+    }
+
+    @Override
+    public void tickByTickMidPoint(int reqId, long time, double midPoint) {
+        // TODO Auto-generated method stub
+    }
 }

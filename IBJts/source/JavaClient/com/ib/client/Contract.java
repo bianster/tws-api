@@ -1,9 +1,10 @@
-/* Copyright (C) 2013 Interactive Brokers LLC. All rights reserved.  This code is subject to the terms
+/* Copyright (C) 2017 Interactive Brokers LLC. All rights reserved.  This code is subject to the terms
  * and conditions of the IB API Non-Commercial License or the IB API Commercial License, as applicable. */
 
 package com.ib.client;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import com.ib.client.Types.Right;
 import com.ib.client.Types.SecIdType;
@@ -23,13 +24,13 @@ public class Contract implements Cloneable {
     private String  m_localSymbol;
     private String  m_tradingClass;
     private String  m_secIdType; // CUSIP;SEDOL;ISIN;RIC
-    private String  m_secId; 
-    
+    private String  m_secId;
+
     private DeltaNeutralContract m_underComp;
     private boolean m_includeExpired;  // can not be set to true for orders
     // COMBOS
     private String m_comboLegsDescrip; // received in open order version 14 and up for all combos 
-    private ArrayList<ComboLeg> m_comboLegs = new ArrayList<ComboLeg>(); // would be final except for clone
+    private List<ComboLeg> m_comboLegs = new ArrayList<>(); // would be final except for clone
 
     // Get
     public double strike()          { return m_strike; }
@@ -51,7 +52,7 @@ public class Contract implements Cloneable {
     public String symbol()          { return m_symbol; }
     public boolean includeExpired() { return m_includeExpired; }
     public DeltaNeutralContract underComp() { return m_underComp; }
-    public ArrayList<ComboLeg> comboLegs()  { return m_comboLegs; }
+    public List<ComboLeg> comboLegs()  { return m_comboLegs; }
     public String comboLegsDescrip()        { return m_comboLegsDescrip; }
 
     // Set
@@ -74,9 +75,9 @@ public class Contract implements Cloneable {
     public void symbol(String v)        { m_symbol = v; }
     public void underComp(DeltaNeutralContract v) { m_underComp = v; }
     public void includeExpired(boolean v)         { m_includeExpired = v; }
-    public void comboLegs(ArrayList<ComboLeg> v)  { m_comboLegs = v; }
+    public void comboLegs(List<ComboLeg> v)  { m_comboLegs = v; }
     public void comboLegsDescrip(String v)        { m_comboLegsDescrip = v; }
-    
+
     public Contract() {
     	m_conid = 0;
         m_strike = 0;
@@ -87,10 +88,10 @@ public class Contract implements Cloneable {
         try {
             Contract copy = (Contract)super.clone();
             if ( copy.m_comboLegs != null ) {
-                copy.m_comboLegs = new ArrayList<ComboLeg>( copy.m_comboLegs);
+                copy.m_comboLegs = new ArrayList<>( copy.m_comboLegs);
             }
             else {
-                copy.m_comboLegs = new ArrayList<ComboLeg>();
+                copy.m_comboLegs = new ArrayList<>();
             }
             return copy;
         }
@@ -103,7 +104,7 @@ public class Contract implements Cloneable {
     public Contract(int p_conId, String p_symbol, String p_secType, String p_lastTradeDateOrContractMonth,
                     double p_strike, String p_right, String p_multiplier,
                     String p_exchange, String p_currency, String p_localSymbol, String p_tradingClass,
-                    ArrayList<ComboLeg> p_comboLegs, String p_primaryExch, boolean p_includeExpired,
+                    List<ComboLeg> p_comboLegs, String p_primaryExch, boolean p_includeExpired,
                     String p_secIdType, String p_secId) {
     	m_conid = p_conId;
         m_symbol = p_symbol;
@@ -150,7 +151,7 @@ public class Contract implements Cloneable {
         	return false;
         }
 
-        if (!Util.NormalizeString(m_secType).equals("BOND")) {
+        if (!"BOND".equals(m_secType)) {
 
         	if (m_strike != l_theOther.m_strike) {
         		return false;
@@ -174,7 +175,7 @@ public class Contract implements Cloneable {
         }
 
     	// compare combo legs
-        if (!Util.ArrayEqualsUnordered(m_comboLegs, l_theOther.m_comboLegs)) {
+        if (!Util.listsEqualUnordered(m_comboLegs, l_theOther.m_comboLegs)) {
         	return false;
         }
 
@@ -187,6 +188,16 @@ public class Contract implements Cloneable {
         	}
         }
         return true;
+    }
+
+    @Override
+    public int hashCode() {
+        // Use a few fields only as a compromise between performance and hashCode quality.
+        int result = m_conid;
+        result = result * 31 + (m_symbol == null || "".equals(m_symbol) ? 0 : m_symbol.hashCode());
+        long temp = Double.doubleToLongBits(m_strike);
+        result = result * 31 + (int) (temp ^ (temp >>> 32));
+        return result;
     }
 
     /** Returns a text description that can be used for display. */
